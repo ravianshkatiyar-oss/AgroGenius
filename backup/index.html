@@ -1,0 +1,2063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroGenius AI Pro — Plant Diagnostics</title>
+<meta name="description" content="AgroGenius AI — instant AI leaf disease diagnosis, live weather-aware crop care, and a multilingual plant care assistant with voice support.">
+<meta name="theme-color" content="#0a120d">
+<meta property="og:title" content="AgroGenius AI Pro — Plant Diagnostics">
+<meta property="og:description" content="Scan a leaf for an instant AI diagnosis with a full treatment plan, live field weather, and a multilingual voice assistant.">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='12' fill='%230a120d'/%3E%3Cpath d='M10 39C10 22 22 10 39 10C39 27 27 39 10 39Z' fill='%237fb069'/%3E%3Cpath d='M10 39C17 32 24 25 39 10' stroke='%230a120d' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --bg:#0a120d;
+  --bg-grad-1:#0a120d;
+  --bg-grad-2:#0f1d15;
+  --surface:rgba(255,255,255,.05);
+  --surface-solid:#122019;
+  --border:rgba(255,255,255,.09);
+  --text:#eef2ec;
+  --text-dim:#93a898;
+  --accent:#7fb069;
+  --accent-bright:#a3d977;
+  --warn:#d9a441;
+  --danger:#b5533a;
+  --info:#5fa8c9;
+  --radius:18px;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+  --radial-a:rgba(127,176,105,.14);
+  --radial-b:rgba(217,164,65,.09);
+}
+body.light{
+  --bg:#eef1e8;
+  --bg-grad-1:#eef1e8;
+  --bg-grad-2:#e2e8d8;
+  --surface:rgba(20,30,20,.05);
+  --surface-solid:#ffffff;
+  --border:rgba(20,30,20,.1);
+  --text:#16241a;
+  --text-dim:#54654e;
+  --accent:#4c7a3d;
+  --accent-bright:#3c6430;
+  --warn:#a9750f;
+  --danger:#9c4028;
+  --info:#2c6e8f;
+  --shadow:0 10px 30px rgba(20,30,20,.12);
+  --radial-a:rgba(76,122,61,.10);
+  --radial-b:rgba(169,117,15,.08);
+}
+/* ---- background theme presets ---- */
+body.theme-sunset{--bg-grad-1:#1c0f07;--bg-grad-2:#2f180d;--radial-a:rgba(224,120,60,.16);--radial-b:rgba(217,164,65,.12);}
+body.theme-ocean{--bg-grad-1:#061420;--bg-grad-2:#0a2030;--radial-a:rgba(95,168,201,.16);--radial-b:rgba(127,176,105,.08);}
+body.theme-dusk{--bg-grad-1:#140a1c;--bg-grad-2:#21102c;--radial-a:rgba(160,110,200,.15);--radial-b:rgba(217,164,65,.08);}
+body.theme-mono{--bg-grad-1:#0b0b0b;--bg-grad-2:#181818;--radial-a:rgba(200,200,200,.08);--radial-b:rgba(140,140,140,.06);}
+body.light.theme-sunset{--bg-grad-1:#f7ece0;--bg-grad-2:#f0dcc4;--radial-a:rgba(224,120,60,.12);--radial-b:rgba(217,164,65,.10);}
+body.light.theme-ocean{--bg-grad-1:#e5f1f5;--bg-grad-2:#d3e6ee;--radial-a:rgba(44,110,143,.12);--radial-b:rgba(76,122,61,.08);}
+body.light.theme-dusk{--bg-grad-1:#f2e7f5;--bg-grad-2:#e6d3ee;--radial-a:rgba(140,90,180,.12);--radial-b:rgba(169,117,15,.08);}
+body.light.theme-mono{--bg-grad-1:#f2f2f2;--bg-grad-2:#dcdcdc;--radial-a:rgba(90,90,90,.08);--radial-b:rgba(60,60,60,.06);}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
+::selection{background:var(--accent);color:#08120c;}
+h1,h2,h3,.display{font-family:'Fraunces',serif;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  overflow-x:hidden;
+  min-height:100vh;
+  transition:background .4s ease,color .4s ease;
+}
+body::before{
+  content:"";
+  position:fixed;inset:0;
+  background:
+    radial-gradient(circle at 15% 10%, var(--radial-a), transparent 45%),
+    radial-gradient(circle at 85% 90%, var(--radial-b), transparent 40%),
+    linear-gradient(160deg,var(--bg-grad-1),var(--bg-grad-2));
+  z-index:-2;
+  transition:background .6s ease;
+}
+a{color:inherit;}
+
+:focus-visible{outline:2px solid var(--accent-bright);outline-offset:3px;}
+
+/* ============ SIDEBAR ============ */
+.sidebar{
+  position:fixed;left:0;top:0;width:250px;height:100vh;
+  padding:26px 20px;
+  background:var(--surface);
+  backdrop-filter:blur(20px);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  z-index:50;
+}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:36px;padding:0 6px;}
+.logo .leaf-mark{width:38px;height:38px;color:var(--accent-bright);}
+.logo h2{font-size:22px;font-weight:600;letter-spacing:.2px;}
+.logo span.tag{display:block;font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;}
+
+.nav-list{list-style:none;flex:1;}
+.nav-list li{
+  padding:13px 16px;margin-bottom:6px;
+  display:flex;gap:14px;align-items:center;
+  border-radius:12px;cursor:pointer;
+  color:var(--text-dim);font-weight:500;font-size:15px;
+  transition:.2s;border:1px solid transparent;
+}
+.nav-list li i{width:18px;text-align:center;}
+.nav-list li:hover{background:var(--surface);color:var(--text);}
+.nav-list li.active{background:var(--accent);color:#08120c;font-weight:600;}
+
+.sidebar-foot{font-size:11px;color:var(--text-dim);padding:10px 6px 0;border-top:1px solid var(--border);margin-top:10px;font-family:'JetBrains Mono',monospace;}
+
+/* ============ MAIN ============ */
+.main{margin-left:270px;padding:34px 34px 60px;max-width:1400px;}
+.page{display:none;animation:fadeIn .4s ease;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+header.top{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:30px;flex-wrap:wrap;gap:16px;}
+header.top h1{font-size:32px;font-weight:600;}
+header.top p{color:var(--text-dim);margin-top:4px;}
+.profile{display:flex;gap:16px;align-items:center;flex-shrink:0;}
+.icon-btn{
+  width:42px;height:42px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:.2s;font-size:16px;
+}
+.icon-btn:hover{border-color:var(--accent);color:var(--accent-bright);}
+
+/* ============ DASHBOARD HERO ============ */
+.hero-banner{
+  position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;
+  gap:28px;flex-wrap:wrap;margin-bottom:30px;padding:34px 38px;border-radius:24px;
+  background:linear-gradient(135deg, rgba(127,176,105,.16), rgba(217,164,65,.07) 60%, transparent);
+  border:1px solid var(--border);backdrop-filter:blur(20px);
+}
+.hero-banner .leaf-watermark{
+  position:absolute;right:-40px;top:-30px;width:260px;height:260px;color:var(--accent);opacity:.08;
+  pointer-events:none;
+}
+.hero-eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent-bright);}
+.hero-text{position:relative;z-index:1;max-width:520px;}
+.hero-text h1{font-size:34px;font-weight:600;margin-top:8px;line-height:1.15;}
+.hero-text p{color:var(--text-dim);margin-top:10px;font-size:15px;}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px;}
+.hero-actions button{padding:12px 22px;font-size:14px;}
+.hero-side{display:flex;align-items:center;gap:22px;position:relative;z-index:1;flex-shrink:0;}
+.ring-visual{
+  width:118px;height:118px;border-radius:50%;position:relative;
+  background:conic-gradient(var(--accent-bright) calc(var(--pct,90)*1%), var(--surface) 0);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .8s ease;
+}
+.ring-visual::before{content:"";position:absolute;inset:9px;border-radius:50%;background:var(--surface-solid);}
+.ring-visual span{position:relative;font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--accent-bright);}
+.ring-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;text-align:center;margin-top:8px;font-family:'JetBrains Mono',monospace;}
+.ring-wrap{display:flex;flex-direction:column;align-items:center;}
+
+/* ============ CARDS ============ */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:30px;}
+.card{
+  background:var(--surface);padding:22px;border-radius:var(--radius);
+  backdrop-filter:blur(15px);border:1px solid var(--border);
+  transition:.3s;position:relative;overflow:hidden;
+}
+.card:hover{transform:translateY(-6px);box-shadow:var(--shadow);}
+.card-icon{
+  width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+  font-size:15px;margin-bottom:14px;background:rgba(127,176,105,.16);color:var(--accent-bright);
+}
+.card-icon.risk{background:rgba(217,164,65,.16);color:var(--warn);}
+.card-icon.weather{background:rgba(95,168,201,.16);color:var(--info);}
+.card-icon.scans{background:rgba(181,83,58,.14);color:var(--danger);}
+.card h3{color:var(--text-dim);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;}
+.card .stat{margin-top:14px;font-size:34px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent-bright);}
+.card .trend{font-size:12px;color:var(--text-dim);margin-top:6px;}
+
+.panel{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:26px;backdrop-filter:blur(20px);
+  margin-bottom:26px;
+}
+.panel h2{font-size:20px;margin-bottom:18px;font-weight:600;}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+
+/* ============ UPLOAD / SCAN ============ */
+.dropzone{
+  border:1.5px dashed var(--border);border-radius:14px;padding:26px;text-align:center;
+  cursor:pointer;transition:.2s;
+}
+.dropzone:hover,.dropzone.drag{border-color:var(--accent);background:var(--surface);}
+.dropzone i{font-size:30px;color:var(--accent);margin-bottom:8px;display:block;}
+input[type=file]{display:none;}
+
+#preview{width:100%;max-width:340px;height:230px;object-fit:cover;display:none;border-radius:14px;border:2px solid var(--accent);margin:18px auto 0;}
+
+button{
+  padding:13px 26px;border:none;border-radius:30px;
+  background:var(--accent);color:#08120c;font-size:15px;font-weight:700;
+  cursor:pointer;transition:.2s;font-family:'Inter',sans-serif;
+}
+button:hover{transform:scale(1.03);box-shadow:0 0 22px rgba(127,176,105,.5);}
+button:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
+button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+button.danger-btn{background:var(--danger);color:#fff;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:16px;}
+
+/* ============ RESULT / GAUGE ============ */
+.result-wrap{text-align:center;}
+.gauge{
+  width:150px;height:150px;border-radius:50%;margin:0 auto 16px;
+  display:flex;align-items:center;justify-content:center;position:relative;
+  background:conic-gradient(var(--accent) calc(var(--pct,0)*1%), var(--surface) 0);
+  transition:background .6s ease;
+}
+.gauge::before{content:"";position:absolute;inset:10px;border-radius:50%;background:var(--surface-solid);}
+.gauge span{position:relative;font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--accent-bright);}
+.result-wrap h3{font-size:22px;margin:14px 0 4px;}
+.result-wrap .conf{color:var(--text-dim);font-size:13px;}
+.advice-box{
+  margin-top:16px;padding:16px 18px;border-radius:12px;background:var(--surface);
+  border-left:3px solid var(--warn);text-align:left;font-size:14px;color:var(--text-dim);display:none;
+}
+.adv-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;}
+.adv-cat{font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:6px;}
+.adv-section{margin-top:12px;}
+.adv-section h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--text);margin-bottom:6px;font-weight:600;}
+.adv-list{list-style:none;padding:0;}
+.adv-list li{position:relative;padding-left:16px;margin-bottom:5px;line-height:1.4;}
+.adv-list li::before{content:"";position:absolute;left:0;top:8px;width:6px;height:6px;border-radius:50%;background:var(--accent-bright);}
+.learn-more-panel{display:none;margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--surface-solid);border:1px solid var(--border);font-size:13px;line-height:1.5;}
+.learn-more-panel.show{display:block;}
+.learn-more-panel a{color:var(--accent-bright);font-weight:600;font-size:12.5px;display:inline-block;margin-top:6px;}
+
+/* ============ WEATHER ============ */
+.weather-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;}
+.weather-main{display:flex;align-items:center;gap:18px;}
+.weather-main i{font-size:52px;color:var(--warn);}
+.weather-temp{font-size:48px;font-family:'JetBrains Mono',monospace;font-weight:700;}
+.weather-sub{color:var(--text-dim);}
+.weather-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px;}
+.weather-grid .mini{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+.weather-grid .mini .v{font-family:'JetBrains Mono',monospace;font-size:20px;color:var(--accent-bright);}
+.weather-grid .mini .l{font-size:11px;color:var(--text-dim);text-transform:uppercase;margin-top:4px;}
+
+/* ============ LOCATION BADGE ============ */
+.loc-badge{
+  display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
+  padding:6px 12px;border-radius:20px;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);
+}
+.loc-badge.live{color:var(--accent-bright);border-color:rgba(127,176,105,.4);}
+.loc-badge.err{color:var(--danger);border-color:rgba(181,83,58,.4);}
+
+/* ============ CAMERA ============ */
+#camera{width:100%;max-width:560px;border-radius:14px;border:2px solid var(--accent);background:#000;}
+#captureCanvas{display:none;}
+
+/* ============ TABLE / HISTORY ============ */
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th,td{padding:11px 10px;text-align:left;border-bottom:1px solid var(--border);}
+th{color:var(--text-dim);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.5px;}
+tr:hover td{background:var(--surface);}
+.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.badge.ok{background:rgba(127,176,105,.18);color:var(--accent-bright);}
+.badge.warn{background:rgba(217,164,65,.18);color:var(--warn);}
+.badge.danger{background:rgba(181,83,58,.18);color:var(--danger);}
+.empty-state{padding:34px 20px;text-align:center;color:var(--text-dim);}
+.empty-state i{font-size:30px;color:var(--accent);opacity:.55;margin-bottom:10px;display:block;}
+.row-btn{padding:6px 12px;font-size:12px;border-radius:20px;margin-right:6px;}
+.row-actions{white-space:nowrap;}
+
+/* ============ CHATBOT ============ */
+.chatbot{
+  position:fixed;right:22px;bottom:22px;width:320px;z-index:999;
+  background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;
+  box-shadow:var(--shadow);overflow:hidden;transition:.3s;
+}
+.chatbot.collapsed .chat-body,.chatbot.collapsed .chat-footer{display:none;}
+.chat-header{
+  font-weight:700;font-size:15px;padding:14px 16px;
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--surface);cursor:pointer;
+}
+.chat-body{height:230px;overflow-y:auto;padding:14px;font-size:13.5px;}
+.chat-body .msg{margin-bottom:10px;padding:8px 12px;border-radius:12px;max-width:85%;line-height:1.4;white-space:pre-line;}
+.chat-body .bot{background:var(--surface);}
+.chat-body .user{background:var(--accent);color:#08120c;margin-left:auto;font-weight:500;}
+.chat-footer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);}
+.chat-footer input{flex:1;padding:9px 12px;border:none;border-radius:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);}
+.chat-footer button{padding:9px 16px;font-size:13px;}
+
+/* ============ TOAST ============ */
+#toastHost{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;}
+.toast{
+  background:var(--surface-solid);border:1px solid var(--border);border-left:4px solid var(--accent);
+  padding:13px 18px;border-radius:10px;box-shadow:var(--shadow);font-size:14px;
+  animation:slideIn .3s ease; max-width:300px;
+}
+.toast.warn-t{border-left-color:var(--warn);}
+.toast.err-t{border-left-color:var(--danger);}
+@keyframes slideIn{from{transform:translateX(30px);opacity:0;}to{transform:none;opacity:1;}}
+
+/* Settings */
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--border);}
+.setting-row:last-child{border-bottom:none;}
+.switch{width:46px;height:26px;background:var(--surface);border:1px solid var(--border);border-radius:20px;position:relative;cursor:pointer;}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--text-dim);transition:.25s;}
+.switch.on{background:var(--accent);}
+.switch.on::after{left:22px;background:#08120c;}
+
+/* ============ LOGIN OVERLAY ============ */
+.login-overlay{
+  position:fixed;inset:0;z-index:5000;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  background:
+    radial-gradient(circle at 15% 10%, var(--radial-a), transparent 45%),
+    radial-gradient(circle at 85% 90%, var(--radial-b), transparent 40%),
+    linear-gradient(160deg,var(--bg-grad-1),var(--bg-grad-2));
+}
+.login-overlay.hidden{display:none;}
+.login-card{
+  width:100%;max-width:380px;background:var(--surface-solid);border:1px solid var(--border);
+  border-radius:22px;box-shadow:var(--shadow);padding:32px 30px;backdrop-filter:blur(20px);
+}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:6px;color:var(--accent-bright);}
+.login-logo h2{font-size:22px;color:var(--text);}
+.login-sub{color:var(--text-dim);font-size:13.5px;margin-bottom:20px;line-height:1.4;}
+.login-label{display:block;font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px;font-weight:600;}
+.login-input{
+  width:100%;padding:12px 14px;border-radius:10px;background:var(--surface);
+  border:1px solid var(--border);color:var(--text);font-size:14px;
+}
+.login-input:focus{border-color:var(--accent);outline:none;}
+.login-or{display:flex;align-items:center;gap:10px;margin:16px 0 0;color:var(--text-dim);font-size:11px;text-transform:uppercase;}
+.login-or::before,.login-or::after{content:"";flex:1;height:1px;background:var(--border);}
+.login-error{color:var(--danger);font-size:12.5px;min-height:16px;margin-top:12px;}
+.login-btn{width:100%;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.login-note{margin-top:16px;font-size:11.5px;color:var(--text-dim);text-align:center;}
+.login-note i{color:var(--accent);}
+
+/* ============ MODAL ============ */
+.modal-overlay{
+  position:fixed;inset:0;z-index:2000;
+  background:rgba(4,8,5,.55);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .25s ease;
+  padding:20px;
+}
+.modal-overlay.open{opacity:1;pointer-events:auto;}
+.modal-box{
+  background:var(--surface-solid);border:1px solid var(--border);
+  border-radius:20px;box-shadow:var(--shadow);
+  width:100%;max-width:420px;max-height:82vh;overflow-y:auto;
+  transform:translateY(18px) scale(.97);transition:transform .28s cubic-bezier(.2,.9,.3,1.2);
+}
+.modal-overlay.open .modal-box{transform:translateY(0) scale(1);}
+.modal-box.wide{max-width:520px;}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--border);}
+.modal-head h3{font-size:17px;font-weight:600;display:flex;align-items:center;gap:10px;}
+.modal-close{
+  width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim);transition:.2s;flex-shrink:0;
+}
+.modal-close:hover{color:var(--danger);border-color:var(--danger);}
+.modal-body{padding:20px 22px;}
+.modal-foot{padding:16px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
+
+.notif-item{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--border);}
+.notif-item:last-child{border-bottom:none;}
+.notif-item i{width:38px;height:38px;border-radius:10px;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);flex-shrink:0;font-size:15px;}
+.notif-item .n-title{font-weight:600;font-size:14px;}
+.notif-item .n-time{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+
+.profile-modal-avatar{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-bright));display:flex;align-items:center;justify-content:center;font-size:28px;color:#08120c;font-weight:700;margin:0 auto 14px;font-family:'Fraunces',serif;}
+.profile-modal-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;}
+.profile-modal-row:last-child{border-bottom:none;}
+.profile-modal-row span:first-child{color:var(--text-dim);}
+
+/* ============ BACKGROUND THEMES ============ */
+.bg-swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:12px;}
+.bg-swatch{
+  aspect-ratio:1;border-radius:12px;cursor:pointer;position:relative;
+  border:2px solid var(--border);transition:.2s;overflow:hidden;
+}
+.bg-swatch:hover{transform:translateY(-3px);}
+.bg-swatch.active{border-color:var(--accent-bright);box-shadow:0 0 0 3px rgba(127,176,105,.25);}
+.bg-swatch.active::after{content:"\f00c";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;text-shadow:0 1px 3px rgba(0,0,0,.5);}
+.bg-swatch[data-bg="forest"]{background:linear-gradient(160deg,#0a120d,#0f1d15);}
+.bg-swatch[data-bg="sunset"]{background:linear-gradient(160deg,#241208,#3a1d10);}
+.bg-swatch[data-bg="ocean"]{background:linear-gradient(160deg,#071620,#0b2233);}
+.bg-swatch[data-bg="dusk"]{background:linear-gradient(160deg,#170a20,#241030);}
+.bg-swatch[data-bg="mono"]{background:linear-gradient(160deg,#0c0c0c,#1a1a1a);}
+body.light .bg-swatch[data-bg="forest"]{background:linear-gradient(160deg,#eef1e8,#e2e8d8);}
+body.light .bg-swatch[data-bg="sunset"]{background:linear-gradient(160deg,#f7ece0,#f0dcc4);}
+body.light .bg-swatch[data-bg="ocean"]{background:linear-gradient(160deg,#e5f1f5,#d3e6ee);}
+body.light .bg-swatch[data-bg="dusk"]{background:linear-gradient(160deg,#f2e7f5,#e6d3ee);}
+body.light .bg-swatch[data-bg="mono"]{background:linear-gradient(160deg,#f0f0f0,#dcdcdc);}
+
+/* ============ VOICE ASSISTANT (inside chatbot) ============ */
+.mic-btn{
+  width:38px;height:38px;flex-shrink:0;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent-bright));
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  border:none;color:#08120c;font-size:15px;padding:0;transition:.25s;
+}
+.mic-btn:hover{transform:scale(1.06);}
+.mic-btn.listening{animation:voicePulse 1.2s ease-in-out infinite;background:linear-gradient(135deg,var(--danger),#d97a5a);}
+@keyframes voicePulse{
+  0%{box-shadow:0 0 0 0 rgba(181,83,58,.55);}
+  70%{box-shadow:0 0 0 14px rgba(181,83,58,0);}
+  100%{box-shadow:0 0 0 0 rgba(181,83,58,0);}
+}
+.voice-status-inline{
+  font-size:12px;color:var(--text-dim);padding:0 14px 10px;text-align:center;
+  max-height:0;opacity:0;overflow:hidden;transition:.25s;
+}
+.voice-status-inline.show{max-height:40px;opacity:1;}
+.voice-toggle-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border-radius:10px;margin-top:14px;font-size:13px;color:var(--text-dim);}
+
+/* ============ RESPONSIVE ============ */
+@media(max-width:1100px){
+  .cards{grid-template-columns:repeat(2,1fr);}
+  .grid-2{grid-template-columns:1fr;}
+  .weather-grid{grid-template-columns:repeat(2,1fr);}
+  .hero-banner{padding:28px;}
+}
+@media(max-width:900px){
+  .sidebar{width:76px;padding:20px 12px;}
+  .logo h2,.logo span.tag,.nav-list span,.sidebar-foot{display:none;}
+  .nav-list li{justify-content:center;padding:14px;}
+  .main{margin-left:96px;}
+  .hero-banner{flex-direction:column;align-items:flex-start;}
+  .hero-side{width:100%;justify-content:space-between;}
+}
+@media(max-width:600px){
+  .cards{grid-template-columns:1fr;}
+  .main{padding:22px 16px 50px;}
+  header.top{flex-direction:column;align-items:flex-start;}
+  .hero-banner{padding:22px;border-radius:18px;}
+  .hero-text h1{font-size:26px;}
+  .hero-actions button{flex:1;}
+  .hero-side{flex-direction:column;align-items:flex-start;gap:16px;}
+  .chatbot{width:calc(100% - 30px);right:15px;bottom:15px;}
+  button{width:100%;}
+  .btn-row{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<div id="toastHost"></div>
+
+<!-- ============ LOGIN OVERLAY ============ -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+        <path d="M8 40C8 22 22 8 40 8C40 26 26 40 8 40Z" fill="currentColor" opacity="0.9"/>
+        <path d="M8 40C16 32 24 24 40 8" stroke="#08120c" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <h2>AgroGenius AI</h2>
+    </div>
+    <p class="login-sub">Sign in with your email or phone number to save your scans and reports.</p>
+    <form id="loginForm">
+      <label class="login-label" for="loginName">Name</label>
+      <input class="login-input" type="text" id="loginName" placeholder="e.g. Ravi Kumar" autocomplete="name">
+
+      <label class="login-label" for="loginEmail">Email</label>
+      <input class="login-input" type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+
+      <div class="login-or"><span>or</span></div>
+
+      <label class="login-label" for="loginPhone">Phone number</label>
+      <input class="login-input" type="tel" id="loginPhone" placeholder="e.g. 9876543210" autocomplete="tel">
+
+      <p class="login-error" id="loginError"></p>
+      <button type="submit" class="login-btn">Continue <i class="fa-solid fa-arrow-right"></i></button>
+    </form>
+    <p class="login-note"><i class="fa-solid fa-lock"></i> This is a local demo login — your details stay on this device only.</p>
+  </div>
+</div>
+
+<!-- ============ SIDEBAR ============ -->
+<div class="sidebar">
+  <div class="logo">
+    <svg class="leaf-mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 40C8 22 22 8 40 8C40 26 26 40 8 40Z" fill="currentColor" opacity="0.9"/>
+      <path d="M8 40C16 32 24 24 40 8" stroke="#08120c" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <h2>AgroGenius</h2>
+      <span class="tag">AI Pro · v2</span>
+    </div>
+  </div>
+  <ul class="nav-list">
+    <li class="active" data-page="dashboard"><i class="fa-solid fa-house"></i><span data-i18n="nav_dashboard">Dashboard</span></li>
+    <li data-page="scan"><i class="fa-solid fa-camera"></i><span data-i18n="nav_scan">Scan</span></li>
+    <li data-page="reports"><i class="fa-solid fa-file-pdf"></i><span data-i18n="nav_reports">Reports</span></li>
+    <li data-page="settings"><i class="fa-solid fa-gear"></i><span data-i18n="nav_settings">Settings</span></li>
+  </ul>
+  <div class="sidebar-foot">SCANS: <span id="sideScanCount">0</span></div>
+</div>
+
+<!-- ============ MAIN ============ -->
+<div class="main">
+
+  <!-- ===== DASHBOARD ===== -->
+  <div class="page active" id="page-dashboard">
+    <div class="hero-banner">
+      <svg class="leaf-watermark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 40C8 22 22 8 40 8C40 26 26 40 8 40Z" fill="currentColor"/>
+      </svg>
+      <div class="hero-text">
+        <span class="hero-eyebrow" data-i18n="hero_eyebrow">AI Plant Diagnostics</span>
+        <h1>🌿 <span data-i18n="dash_title">Dashboard</span></h1>
+        <p data-i18n="dash_sub">Smart plant disease diagnostics, at a glance.</p>
+        <div class="hero-actions">
+          <button id="heroScanBtn" type="button">📷 <span data-i18n="hero_scan_btn">Scan a Leaf</span></button>
+          <button class="ghost" id="heroChatBtn" type="button">🤖 <span data-i18n="hero_chat_btn">Ask Agro AI</span></button>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="ring-wrap">
+          <div class="ring-visual" id="heroRing" style="--pct:98"><span id="heroRingValue">98%</span></div>
+          <div class="ring-label" data-i18n="ring_label">Crop Health</div>
+        </div>
+        <div class="profile">
+          <div class="icon-btn" id="openNotifBtn" title="Notifications"><i class="fa-solid fa-bell"></i></div>
+          <div class="icon-btn" id="openProfileBtn" title="Profile"><i class="fa-solid fa-user"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon health"><i class="fa-solid fa-leaf"></i></div>
+        <h3 data-i18n="card_health">Crop Health</h3>
+        <div class="stat" id="statHealth">98%</div>
+        <div class="trend" data-i18n="card_health_sub">Avg. of last 10 scans</div>
+      </div>
+      <div class="card">
+        <div class="card-icon risk"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3 data-i18n="card_risk">Disease Risk</h3>
+        <div class="stat" id="statRisk">12%</div>
+        <div class="trend" data-i18n="card_risk_sub">Based on scan history</div>
+      </div>
+      <div class="card">
+        <div class="card-icon weather"><i class="fa-solid fa-cloud-sun"></i></div>
+        <h3 data-i18n="card_weather">Weather Now</h3>
+        <div class="stat" id="statTemp">--°C</div>
+        <div class="trend" id="statCity">Fetching location…</div>
+      </div>
+      <div class="card">
+        <div class="card-icon scans"><i class="fa-solid fa-camera-retro"></i></div>
+        <h3 data-i18n="card_scans">Total Scans</h3>
+        <div class="stat" id="statScans">0</div>
+        <div class="trend" data-i18n="card_scans_sub">Stored on this device</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="weather-row">
+        <div class="weather-main">
+          <i class="fa-solid fa-cloud-sun" id="weatherIcon"></i>
+          <div>
+            <div class="weather-temp" id="weatherTemp">--°C</div>
+            <div class="weather-sub" id="condition">Loading…</div>
+            <div class="weather-sub" id="city">Locating…</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+          <span class="loc-badge" id="locBadge"><i class="fa-solid fa-location-crosshairs"></i> <span id="locBadgeText">Locating…</span></span>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="ghost" id="enableLocationBtn" type="button" style="display:none;"><i class="fa-solid fa-location-dot"></i> Use my location</button>
+            <button class="ghost" id="refreshWeather" type="button"><i class="fa-solid fa-rotate"></i> <span data-i18n="refresh_btn">Refresh</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="weather-grid">
+        <div class="mini"><div class="v" id="wHumidity">--%</div><div class="l" data-i18n="humidity">Humidity</div></div>
+        <div class="mini"><div class="v" id="wWind">-- km/h</div><div class="l" data-i18n="wind">Wind</div></div>
+        <div class="mini"><div class="v" id="wPrecip">--%</div><div class="l" data-i18n="precip">Precip. chance</div></div>
+        <div class="mini"><div class="v" id="wUpdated">--</div><div class="l" data-i18n="updated">Updated</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 data-i18n="panel_health_analytics">Plant Health Analytics</h2>
+      <canvas id="myChart" height="90"></canvas>
+    </div>
+
+    <div class="panel">
+      <h2>🕒 <span data-i18n="scan_history">Scan History</span></h2>
+      <div id="historyWrap">
+        <table>
+          <thead><tr><th data-i18n="th_time">Time</th><th data-i18n="th_diagnosis">Diagnosis</th><th data-i18n="th_confidence">Confidence</th></tr></thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+        <div class="empty-state" id="historyEmpty"><i class="fa-solid fa-seedling"></i><span data-i18n="no_scans_yet">No scans yet — results will appear here.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCAN ===== -->
+  <div class="page" id="page-scan">
+    <header class="top">
+      <div><h1>📷 <span data-i18n="scan_title">Scan a Leaf</span></h1><p data-i18n="scan_sub">Upload a photo or use your camera for instant analysis.</p></div>
+    </header>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2 data-i18n="upload_heading">Upload Plant Leaf</h2>
+        <label class="dropzone" id="dropzone" for="image">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <p data-i18n="dropzone_text">Click or drag a leaf image here</p>
+        </label>
+        <input type="file" id="image" accept="image/*">
+        <img id="preview" alt="Leaf preview">
+        <div class="btn-row">
+          <button id="scanBtn">🔍 <span data-i18n="scan_btn">Scan with AI</span></button>
+          <button class="ghost" id="clearBtn" type="button" data-i18n="clear_btn">Clear</button>
+        </div>
+
+        <div style="margin-top:26px;">
+          <h2 style="font-size:16px;margin-bottom:12px;" data-i18n="camera_heading">Or use Live Camera</h2>
+          <video id="camera" autoplay playsinline muted></video>
+          <canvas id="captureCanvas"></canvas>
+          <div class="btn-row">
+            <button class="ghost" id="openCamera" type="button" data-i18n="open_camera">Open Camera</button>
+            <button id="captureImage" type="button" disabled data-i18n="capture_btn">Capture</button>
+            <button class="ghost" id="stopCamera" type="button" disabled data-i18n="stop_camera">Stop</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel result-wrap">
+        <h2 data-i18n="prediction_heading">AI Prediction</h2>
+        <div class="gauge" style="--pct:0" id="gauge"><span id="accuracy">0%</span></div>
+        <h3 id="disease" data-i18n="waiting_scan">Waiting for scan…</h3>
+        <p class="conf" id="confLabel" data-i18n="upload_prompt">Upload or capture a leaf image to begin.</p>
+        <div class="advice-box" id="adviceBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== REPORTS ===== -->
+  <div class="page" id="page-reports">
+    <header class="top"><div><h1>📄 <span data-i18n="reports_title">Reports</span></h1><p data-i18n="reports_sub">Export your latest diagnosis as a PDF.</p></div></header>
+    <div class="panel">
+      <h2 data-i18n="latest_result">Latest Result</h2>
+      <p class="conf" id="reportSummary" style="margin-bottom:16px;">Run a scan first to generate a report.</p>
+      <button id="downloadPDF">⬇ <span data-i18n="download_pdf">Download PDF Report</span></button>
+    </div>
+
+    <div class="panel">
+      <h2>🗂 Previous Reports</h2>
+      <p class="conf" style="margin-bottom:14px;">Every past scan on this account — view details or re-download the PDF anytime.</p>
+      <div id="reportsListWrap">
+        <table>
+          <thead><tr><th>Date</th><th>Diagnosis</th><th>Confidence</th><th></th></tr></thead>
+          <tbody id="reportsListBody"></tbody>
+        </table>
+        <div class="empty-state" id="reportsListEmpty"><i class="fa-solid fa-folder-open"></i><span>No previous reports yet — run a scan to create your first one.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div class="page" id="page-settings">
+    <header class="top"><div><h1>⚙ <span data-i18n="settings_title">Settings</span></h1><p data-i18n="settings_sub">Personalize AgroGenius.</p></div></header>
+    <div class="panel">
+      <div class="setting-row">
+        <div><strong data-i18n="dark_mode">Dark mode</strong><div class="conf" data-i18n="dark_mode_desc">Switch between night and day theme</div></div>
+        <div class="switch on" id="themeSwitch"></div>
+      </div>
+      <div class="setting-row">
+        <div><strong data-i18n="voice_replies">Voice replies</strong><div class="conf" data-i18n="voice_replies_desc">Let the assistant speak its answers out loud</div></div>
+        <div class="switch" id="voiceReplySwitch"></div>
+      </div>
+      <div class="setting-row">
+        <div><strong data-i18n="clear_history">Clear scan history</strong><div class="conf" data-i18n="clear_history_desc">Remove all saved scans from this device</div></div>
+        <button class="danger-btn" id="clearHistoryBtn" data-i18n="clear_btn2">Clear</button>
+      </div>
+      <div class="setting-row">
+        <div><strong>Account</strong><div class="conf" id="settingsAccountInfo">Not signed in</div></div>
+        <button class="ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>🌐 <span data-i18n="language_heading">Language</span></h2>
+      <p class="conf" style="margin-bottom:10px;" data-i18n="language_desc">Read every diagnosis, tip and chat reply in your own language.</p>
+      <select class="lang-select" id="langSelect">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी (Hindi)</option>
+        <option value="bn">বাংলা (Bengali)</option>
+        <option value="ta">தமிழ் (Tamil)</option>
+        <option value="te">తెలుగు (Telugu)</option>
+        <option value="mr">मराठी (Marathi)</option>
+        <option value="gu">ગુજરાતી (Gujarati)</option>
+        <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+        <option value="ur">اردو (Urdu)</option>
+        <option value="es">Español (Spanish)</option>
+        <option value="fr">Français (French)</option>
+        <option value="de">Deutsch (German)</option>
+        <option value="pt">Português (Portuguese)</option>
+        <option value="zh">中文 (Chinese)</option>
+        <option value="ja">日本語 (Japanese)</option>
+        <option value="ar">العربية (Arabic)</option>
+        <option value="ru">Русский (Russian)</option>
+      </select>
+    </div>
+
+    <div class="panel">
+      <h2>🎨 <span data-i18n="bg_theme_heading">Background Theme</span></h2>
+      <p class="conf" style="margin-bottom:4px;" data-i18n="bg_theme_desc">Pick the ambient background that fits your mood.</p>
+      <div class="bg-swatches" id="bgSwatches">
+        <div class="bg-swatch active" data-bg="forest" title="Forest"></div>
+        <div class="bg-swatch" data-bg="sunset" title="Sunset"></div>
+        <div class="bg-swatch" data-bg="ocean" title="Ocean"></div>
+        <div class="bg-swatch" data-bg="dusk" title="Dusk"></div>
+        <div class="bg-swatch" data-bg="mono" title="Mono"></div>
+      </div>
+      <div class="voice-toggle-row">
+        <i class="fa-solid fa-microphone"></i>
+        <span data-i18n="mic_hint">Tap the mic button (bottom-right) anytime to talk to Agro AI — try "open weather", "scan", or "clear history".</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ MODALS ============ -->
+<div class="modal-overlay" id="notifModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3><i class="fa-solid fa-bell"></i> Notifications</h3>
+      <div class="modal-close" data-close><i class="fa-solid fa-xmark"></i></div>
+    </div>
+    <div class="modal-body" id="notifBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="profileModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3><i class="fa-solid fa-user"></i> Your Profile</h3>
+      <div class="modal-close" data-close><i class="fa-solid fa-xmark"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="profile-modal-avatar" id="profileAvatar">A</div>
+      <div class="profile-modal-row"><span>Name</span><span id="profileName">Agro Grower</span></div>
+      <div class="profile-modal-row"><span>Email</span><span id="profileEmail">—</span></div>
+      <div class="profile-modal-row"><span>Phone</span><span id="profilePhone">—</span></div>
+      <div class="profile-modal-row"><span>Total scans</span><span id="profileScanCount">0</span></div>
+      <div class="profile-modal-row"><span>Theme</span><span id="profileTheme">Dark</span></div>
+      <div class="profile-modal-row"><span>Background</span><span id="profileBg">Forest</span></div>
+      <div class="profile-modal-row"><span>Device storage</span><span>Local only</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="reportDetailModal">
+  <div class="modal-box wide">
+    <div class="modal-head">
+      <h3><i class="fa-solid fa-file-lines"></i> Report Detail</h3>
+      <div class="modal-close" data-close><i class="fa-solid fa-xmark"></i></div>
+    </div>
+    <div class="modal-body" id="reportDetailBody"></div>
+    <div class="modal-foot">
+      <button class="ghost" data-close type="button">Close</button>
+      <button id="reportDetailPdfBtn" type="button">⬇ Download PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="confirmTitle"><i class="fa-solid fa-triangle-exclamation"></i> Are you sure?</h3>
+      <div class="modal-close" data-close><i class="fa-solid fa-xmark"></i></div>
+    </div>
+    <div class="modal-body" id="confirmBody">This action cannot be undone.</div>
+    <div class="modal-foot">
+      <button class="ghost" data-close type="button">Cancel</button>
+      <button class="danger-btn" id="confirmActionBtn" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CHATBOT (includes voice assistant) ============ -->
+<div class="chatbot" id="chatbot">
+  <div class="chat-header" id="chatToggle">
+    <span>🤖 <span data-i18n="chatbot_header">Agro AI Assistant</span></span>
+    <i class="fa-solid fa-chevron-down" id="chatChevron"></i>
+  </div>
+  <div class="chat-body" id="chatBody">
+    <div class="msg bot" id="chatGreeting" data-i18n="chatbot_greeting">👋 Hello! Describe a plant problem or ask about diseases, watering, or fertilizers — in any language. Tap the mic to talk instead of typing.</div>
+  </div>
+  <div class="voice-status-inline" id="voiceStatus"></div>
+  <div class="chat-footer">
+    <button class="mic-btn" id="voiceFab" type="button" title="Talk to Agro AI"><i class="fa-solid fa-microphone" id="voiceIcon"></i></button>
+    <input type="text" id="chatInput" placeholder="Ask something…" data-i18n-placeholder="chat_placeholder">
+    <button id="sendBtn" type="button" data-i18n="send_btn">Send</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+function toast(msg, type){
+  const host = document.getElementById("toastHost");
+  const el = document.createElement("div");
+  el.className = "toast" + (type === "warn" ? " warn-t" : type === "err" ? " err-t" : "");
+  el.textContent = msg;
+  host.appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transition = ".3s"; setTimeout(() => el.remove(), 300); }, 3200);
+}
+
+const store = {
+  get(key, fallback){
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch(e){ return fallback; }
+  },
+  set(key, val){
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){ /* storage unavailable */ }
+  }
+};
+
+/* ============================================================
+   LOGIN / USER SESSION (mock, on-device — email or phone)
+   Scan history and reports are namespaced per logged-in user so
+   each account only sees its own data on this device.
+   ============================================================ */
+function getCurrentUser(){ return store.get("agro_user", null); }
+function userKey(){
+  const u = getCurrentUser();
+  if (!u) return "guest";
+  return (u.email || u.phone || "guest").trim().toLowerCase();
+}
+function historyKey(){ return "agro_history_" + userKey(); }
+
+/* ============================================================
+   CLOUD TRANSLATION ENGINE (MyMemory — free, no API key)
+   Generic text↔text translation used for: static UI labels,
+   the disease knowledge base, and the AI assistant's replies —
+   so the whole app can be understood in the user's own language.
+   Results are cached in localStorage so repeat lookups are free.
+   ============================================================ */
+const SPEECH_LOCALE = {
+  en:"en-IN", hi:"hi-IN", es:"es-ES", fr:"fr-FR", de:"de-DE", pt:"pt-PT",
+  bn:"bn-IN", ta:"ta-IN", te:"te-IN", mr:"mr-IN", gu:"gu-IN", pa:"pa-IN",
+  ur:"ur-IN", zh:"zh-CN", ja:"ja-JP", ar:"ar-SA", ru:"ru-RU"
+};
+
+function i18nCacheKey(sourceLang, targetLang){ return "agro_tr_" + sourceLang + "_" + targetLang; }
+
+async function translateText(text, sourceLang, targetLang){
+  if (!text || !text.trim() || sourceLang === targetLang) return text;
+  const cache = store.get(i18nCacheKey(sourceLang, targetLang), {});
+  if (cache[text] !== undefined) return cache[text];
+  try{
+    const url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=" + sourceLang + "|" + targetLang;
+    const res = await fetch(url);
+    const data = await res.json();
+    const translated = data && data.responseData && data.responseData.translatedText;
+    if (translated && !/MYMEMORY WARNING/i.test(translated)){
+      cache[text] = translated;
+      store.set(i18nCacheKey(sourceLang, targetLang), cache);
+      return translated;
+    }
+  } catch(e){ /* offline or blocked — fall back to source text */ }
+  return text;
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+const navItems = document.querySelectorAll(".nav-list li");
+const pages = document.querySelectorAll(".page");
+navItems.forEach(item => {
+  item.addEventListener("click", () => {
+    navItems.forEach(i => i.classList.remove("active"));
+    item.classList.add("active");
+    const target = item.dataset.page;
+    pages.forEach(p => p.classList.toggle("active", p.id === "page-" + target));
+    if (target !== "scan") stopCameraStream();
+    if (target === "reports"){ updateReportSummary(); renderReportsList(); }
+  });
+});
+
+/* ============================================================
+   THEME
+   ============================================================ */
+const themeSwitch = document.getElementById("themeSwitch");
+function applyTheme(isLight){
+  document.body.classList.toggle("light", isLight);
+  themeSwitch.classList.toggle("on", !isLight);
+  store.set("agro_theme", isLight ? "light" : "dark");
+}
+applyTheme(store.get("agro_theme", "dark") === "light");
+themeSwitch.addEventListener("click", () => applyTheme(!document.body.classList.contains("light")));
+
+/* ============================================================
+   LOGIN FORM
+   ============================================================ */
+const loginOverlay = document.getElementById("loginOverlay");
+const loginForm = document.getElementById("loginForm");
+const loginError = document.getElementById("loginError");
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^[0-9]{7,15}$/;
+
+function showLoginOverlay(){
+  loginForm.reset();
+  loginError.textContent = "";
+  loginOverlay.classList.remove("hidden");
+}
+function hideLoginOverlay(){
+  loginOverlay.classList.add("hidden");
+}
+
+loginForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = document.getElementById("loginName").value.trim();
+  const email = document.getElementById("loginEmail").value.trim();
+  const phone = document.getElementById("loginPhone").value.trim().replace(/[\s-]/g, "");
+
+  if (!email && !phone){
+    loginError.textContent = "Enter your email or phone number to continue.";
+    return;
+  }
+  if (email && !EMAIL_RE.test(email)){
+    loginError.textContent = "That email address doesn't look right.";
+    return;
+  }
+  if (phone && !PHONE_RE.test(phone)){
+    loginError.textContent = "Enter a valid phone number (digits only, 7-15 digits).";
+    return;
+  }
+  loginError.textContent = "";
+  store.set("agro_user", { name: name || "", email: email || "", phone: phone || "", loggedInAt: new Date().toISOString() });
+  hideLoginOverlay();
+  toast("Welcome" + (name ? ", " + name : "") + "!");
+  bootApp();
+});
+
+/* ============================================================
+   LANGUAGE / UI TRANSLATION
+   ============================================================ */
+let ORIGINAL_STRINGS = {};
+let ORIGINAL_PLACEHOLDERS = {};
+function captureOriginalStrings(){
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.dataset.i18n;
+    if (!(key in ORIGINAL_STRINGS)) ORIGINAL_STRINGS[key] = el.textContent;
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+    const key = el.dataset.i18nPlaceholder;
+    if (!(key in ORIGINAL_PLACEHOLDERS)) ORIGINAL_PLACEHOLDERS[key] = el.placeholder;
+  });
+}
+function setStringsToDOM(key, text){
+  document.querySelectorAll('[data-i18n="' + key + '"]').forEach(el => { el.textContent = text; });
+}
+function setPlaceholderToDOM(key, text){
+  document.querySelectorAll('[data-i18n-placeholder="' + key + '"]').forEach(el => { el.placeholder = text; });
+}
+async function applyLanguage(lang, opts){
+  opts = opts || {};
+  store.set("agro_lang", lang);
+  document.documentElement.lang = lang;
+  document.querySelectorAll(".lang-select").forEach(sel => { sel.value = lang; });
+
+  const keys = Object.keys(ORIGINAL_STRINGS);
+  const placeholderKeys = Object.keys(ORIGINAL_PLACEHOLDERS);
+  if (lang === "en"){
+    keys.forEach(k => setStringsToDOM(k, ORIGINAL_STRINGS[k]));
+    placeholderKeys.forEach(k => setPlaceholderToDOM(k, ORIGINAL_PLACEHOLDERS[k]));
+  } else {
+    if (!opts.silent) toast("Translating interface…");
+    await Promise.all([
+      ...keys.map(async k => setStringsToDOM(k, await translateText(ORIGINAL_STRINGS[k], "en", lang))),
+      ...placeholderKeys.map(async k => setPlaceholderToDOM(k, await translateText(ORIGINAL_PLACEHOLDERS[k], "en", lang)))
+    ]);
+  }
+  if (lastResult) renderAdviceBox(lastResult.diagnosis);
+}
+
+/* ============================================================
+   BACKGROUND THEME
+   ============================================================ */
+const bgNames = { forest:"Forest", sunset:"Sunset", ocean:"Ocean", dusk:"Dusk", mono:"Mono" };
+function applyBgTheme(theme){
+  document.body.classList.remove("theme-forest","theme-sunset","theme-ocean","theme-dusk","theme-mono");
+  document.body.classList.add("theme-" + theme);
+  document.querySelectorAll(".bg-swatch").forEach(s => s.classList.toggle("active", s.dataset.bg === theme));
+  const profileBg = document.getElementById("profileBg");
+  if (profileBg) profileBg.textContent = bgNames[theme] || theme;
+  store.set("agro_bg", theme);
+}
+document.querySelectorAll(".bg-swatch").forEach(sw => {
+  sw.addEventListener("click", () => { applyBgTheme(sw.dataset.bg); toast("Background set to " + bgNames[sw.dataset.bg] + "."); });
+});
+applyBgTheme(store.get("agro_bg", "forest"));
+
+/* ============================================================
+   GENERIC MODAL SYSTEM
+   ============================================================ */
+function openModal(id){
+  const el = document.getElementById(id);
+  el.classList.add("open");
+}
+function closeModal(id){
+  document.getElementById(id).classList.remove("open");
+}
+document.querySelectorAll(".modal-overlay").forEach(overlay => {
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.classList.remove("open"); });
+  overlay.querySelectorAll("[data-close]").forEach(btn => btn.addEventListener("click", () => overlay.classList.remove("open")));
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") document.querySelectorAll(".modal-overlay.open").forEach(o => o.classList.remove("open"));
+});
+
+/* ---- Notifications ---- */
+function buildNotifications(){
+  const history = store.get(historyKey(), []);
+  const body = document.getElementById("notifBody");
+  const items = [];
+  history.slice(0, 5).forEach(h => {
+    items.push({
+      icon: h.risk === "ok" ? "fa-circle-check" : "fa-triangle-exclamation",
+      title: h.name + " · " + h.confidence + "% confidence",
+      time: new Date(h.time).toLocaleString()
+    });
+  });
+  items.push({ icon:"fa-cloud-sun", title:"Weather data refreshed for your area", time:"Just now" });
+  if (!history.length) items.push({ icon:"fa-leaf", title:"Run your first scan to see AI diagnostics here", time:"Tip" });
+  body.innerHTML = items.map(it =>
+    "<div class='notif-item'><i class='fa-solid " + it.icon + "'></i><div><div class='n-title'>" + it.title + "</div><div class='n-time'>" + it.time + "</div></div></div>"
+  ).join("");
+}
+document.getElementById("openNotifBtn").addEventListener("click", () => { buildNotifications(); openModal("notifModal"); });
+
+/* ---- Profile ---- */
+document.getElementById("openProfileBtn").addEventListener("click", () => {
+  const u = getCurrentUser() || {};
+  document.getElementById("profileName").textContent = u.name || "Agro Grower";
+  document.getElementById("profileEmail").textContent = u.email || "—";
+  document.getElementById("profilePhone").textContent = u.phone || "—";
+  document.getElementById("profileAvatar").textContent = ((u.name || u.email || u.phone || "A")[0] || "A").toUpperCase();
+  document.getElementById("profileScanCount").textContent = store.get(historyKey(), []).length;
+  document.getElementById("profileTheme").textContent = document.body.classList.contains("light") ? "Light" : "Dark";
+  openModal("profileModal");
+});
+
+/* ---- Logout ---- */
+function refreshAccountSettingsRow(){
+  const u = getCurrentUser();
+  const el = document.getElementById("settingsAccountInfo");
+  if (el) el.textContent = u ? ("Signed in as " + (u.email || u.phone)) : "Not signed in";
+}
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  confirmAction("Log out?", "You can sign back in anytime with the same email or phone to see your saved reports again.", () => {
+    store.set("agro_user", null);
+    toast("Logged out.");
+    showLoginOverlay();
+  });
+});
+
+/* ---- Confirm dialog helper ---- */
+function confirmAction(title, message, onConfirm){
+  document.getElementById("confirmTitle").innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ' + title;
+  document.getElementById("confirmBody").textContent = message;
+  const btn = document.getElementById("confirmActionBtn");
+  const freshBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(freshBtn, btn);
+  freshBtn.addEventListener("click", () => { onConfirm(); closeModal("confirmModal"); });
+  openModal("confirmModal");
+}
+
+/* ============================================================
+   IMAGE UPLOAD + PREVIEW
+   ============================================================ */
+const imageInput = document.getElementById("image");
+const preview = document.getElementById("preview");
+const dropzone = document.getElementById("dropzone");
+const scanBtn = document.getElementById("scanBtn");
+const clearBtn = document.getElementById("clearBtn");
+let selectedImageEl = null; // an <img> or <canvas> source we can read pixels from
+
+function loadPreview(dataUrl){
+  preview.src = dataUrl;
+  preview.style.display = "block";
+  const probe = new Image();
+  probe.onload = () => { selectedImageEl = probe; };
+  probe.src = dataUrl;
+}
+
+imageInput.addEventListener("change", function(){
+  const file = this.files[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { toast("Please choose an image file.", "err"); return; }
+  const reader = new FileReader();
+  reader.onload = e => loadPreview(e.target.result);
+  reader.readAsDataURL(file);
+});
+
+dropzone.addEventListener("dragover", e => { e.preventDefault(); dropzone.classList.add("drag"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+dropzone.addEventListener("drop", e => {
+  e.preventDefault(); dropzone.classList.remove("drag");
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith("image/")){
+    imageInput.files = e.dataTransfer.files;
+    const reader = new FileReader();
+    reader.onload = ev => loadPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+});
+
+clearBtn.addEventListener("click", () => {
+  selectedImageEl = null;
+  preview.style.display = "none";
+  preview.src = "";
+  imageInput.value = "";
+  resetResult();
+});
+
+function resetResult(){
+  document.getElementById("disease").textContent = "Waiting for scan…";
+  document.getElementById("confLabel").textContent = "Upload or capture a leaf image to begin.";
+  document.getElementById("accuracy").textContent = "0%";
+  document.getElementById("gauge").style.setProperty("--pct", 0);
+  document.getElementById("adviceBox").style.display = "none";
+}
+
+/* ============================================================
+   PLANT & LEAF DISEASE KNOWLEDGE BASE
+   A curated professional reference covering fungal, bacterial,
+   viral, pest and nutrient-related leaf conditions. Each entry
+   has causes/symptoms/treatment/prevention used both by the
+   scan engine and by the AI assistant's text/voice answers.
+   ============================================================ */
+const DISEASE_DB = [
+  { id:"healthy", name:"Healthy Leaf", category:"None", icon:"fa-leaf", risk:"ok",
+    causes:["No pathogen present — good light, water and nutrient balance."],
+    symptoms:["Uniform green colour","Firm texture","No spots, curling or discoloration"],
+    treatment:["No treatment needed — maintain current care routine."],
+    prevention:["Water at soil level in the morning","Ensure 4-6 hours of sunlight","Rotate crops each season","Inspect leaves weekly"],
+    keywords:["healthy","fine","normal","no problem","good leaf"] },
+
+  { id:"rust", name:"Leaf Rust", category:"Fungal", icon:"fa-circle-dot", risk:"warn",
+    causes:["Puccinia fungal spores spread by wind and splashing water","Prolonged leaf wetness","Dense, poorly ventilated planting"],
+    symptoms:["Small orange or reddish-brown raised pustules","Powdery orange dust on the underside of leaves","Yellow halos around spots"],
+    treatment:["Remove and destroy infected leaves immediately","Apply a sulfur or myclobutanil-based fungicide every 7-10 days","Avoid overhead watering"],
+    prevention:["Space plants for airflow","Water early in the day so leaves dry fast","Choose rust-resistant varieties next season"],
+    keywords:["rust","orange spots","orange dust","pustules","reddish spots"] },
+
+  { id:"early-blight", name:"Early Blight", category:"Fungal", icon:"fa-bullseye", risk:"warn",
+    causes:["Alternaria fungus surviving in soil and old plant debris","Warm, humid weather","Nutrient-stressed or older leaves"],
+    symptoms:["Dark brown spots with concentric target-like rings","Yellowing around the spots","Lower/older leaves affected first"],
+    treatment:["Prune and dispose of affected lower leaves","Apply chlorothalonil or copper-based fungicide","Mulch soil to stop spores splashing up"],
+    prevention:["Rotate crops every 2-3 years","Avoid overhead irrigation","Stake plants for airflow"],
+    keywords:["target spots","ring spots","concentric rings","brown spots with rings","early blight"] },
+
+  { id:"late-blight", name:"Late Blight", category:"Fungal", icon:"fa-cloud-rain", risk:"danger",
+    causes:["Phytophthora infestans, spreads fast in cool, wet, humid conditions","Infected seed stock or nearby infected plants"],
+    symptoms:["Large water-soaked, greasy-looking dark patches","White fuzzy mold on leaf undersides in humid weather","Rapid wilting and collapse of whole leaves"],
+    treatment:["Isolate or remove severely infected plants right away","Apply a copper-based fungicide promptly, repeat per label","Improve drainage and avoid working with wet plants"],
+    prevention:["Avoid overhead watering, especially in the evening","Increase plant spacing","Destroy volunteer plants and old debris"],
+    keywords:["water soaked","late blight","greasy patches","rapid wilting","mold underside"] },
+
+  { id:"powdery-mildew", name:"Powdery Mildew", category:"Fungal", icon:"fa-snowflake", risk:"warn",
+    causes:["Erysiphales fungi favouring warm days, cool nights and still humid air","Shaded, crowded plantings"],
+    symptoms:["White to grey powdery coating on leaf surfaces","Leaves may curl, yellow or become distorted","Coating wipes off easily like flour"],
+    treatment:["Spray neem oil or a potassium bicarbonate solution weekly","Remove heavily coated leaves","Increase spacing and sunlight exposure"],
+    prevention:["Improve airflow between plants","Avoid excess nitrogen fertilizer","Water soil, not foliage"],
+    keywords:["white powder","powdery","white coating","flour like","mildew"] },
+
+  { id:"downy-mildew", name:"Downy Mildew", category:"Fungal", icon:"fa-smog", risk:"warn",
+    causes:["Water-mould pathogens (Peronospora) thriving in cool, damp, poorly ventilated conditions"],
+    symptoms:["Pale yellow patches on the upper leaf surface","Grey-purple fuzzy growth directly beneath those patches","Angular spots bound by leaf veins"],
+    treatment:["Remove infected leaves and improve ventilation","Apply a copper or mancozeb-based fungicide","Reduce leaf wetness duration"],
+    prevention:["Avoid watering in the evening","Increase row spacing","Use resistant varieties where available"],
+    keywords:["downy mildew","grey fuzzy","purple fuzz","angular spots","yellow patches underside"] },
+
+  { id:"bacterial-spot", name:"Bacterial Leaf Spot", category:"Bacterial", icon:"fa-braille", risk:"warn",
+    causes:["Xanthomonas or Pseudomonas bacteria spread by splashing water and contaminated tools","Wounded or wet leaf tissue"],
+    symptoms:["Small, dark, water-soaked spots often with a yellow halo","Spots may merge and leaf tissue can fall out, leaving holes","Spots feel slightly greasy or wet"],
+    treatment:["Avoid working in the garden when leaves are wet","Apply a copper-based bactericide early","Remove and discard infected leaves"],
+    prevention:["Disinfect tools between plants","Use drip irrigation instead of overhead watering","Buy certified disease-free seed"],
+    keywords:["bacterial spot","small dark spots","holes in leaf","greasy spots","yellow halo"] },
+
+  { id:"bacterial-wilt", name:"Bacterial Wilt", category:"Bacterial", icon:"fa-droplet-slash", risk:"danger",
+    causes:["Ralstonia or Erwinia bacteria entering through roots or wounds","Spread by cucumber beetles or contaminated soil/water"],
+    symptoms:["Sudden wilting of leaves or whole stems even with moist soil","Wilting starts on one side or one branch first","Stem oozes a milky sap when cut, in advanced cases"],
+    treatment:["Remove and destroy affected plants — there is no cure once infected","Control insect vectors like cucumber beetles","Disinfect tools thoroughly after use"],
+    prevention:["Practice strict crop rotation","Control insect carriers early in the season","Avoid working with plants when they're wet"],
+    keywords:["sudden wilting","wilt suddenly","milky sap","collapsing plant","wilt one side"] },
+
+  { id:"mosaic-virus", name:"Mosaic Virus", category:"Viral", icon:"fa-shapes", risk:"warn",
+    causes:["Viruses spread mainly by aphids, whiteflies or contaminated tools","No cure exists once a plant is infected"],
+    symptoms:["Mottled light and dark green patchwork pattern on leaves","Leaves are often stunted, curled or crinkled","Reduced fruit yield and size"],
+    treatment:["Remove and destroy infected plants to stop spread","Control aphid and whitefly populations","Disinfect pruning tools between plants"],
+    prevention:["Buy certified virus-free seed or seedlings","Control insect vectors early","Avoid tobacco handling before touching plants (tobacco mosaic virus)"],
+    keywords:["mosaic","mottled leaves","patchwork pattern","crinkled leaves","stunted curled leaves"] },
+
+  { id:"leaf-curl-virus", name:"Leaf Curl Virus", category:"Viral", icon:"fa-arrows-spin", risk:"warn",
+    causes:["Begomoviruses transmitted by whiteflies","Common in hot, dry seasons with high whitefly activity"],
+    symptoms:["Upward or downward curling of leaves","Thickened, leathery leaf texture","Stunted plant growth and reduced flowering"],
+    treatment:["Remove severely infected plants","Control whiteflies with sticky traps or insecticidal soap","There is no chemical cure for the virus itself"],
+    prevention:["Use reflective mulch to repel whiteflies","Install insect-proof netting on nurseries","Avoid planting near heavily infected fields"],
+    keywords:["leaf curl","curling leaves","upward curl","leathery leaves","whitefly"] },
+
+  { id:"anthracnose", name:"Anthracnose", category:"Fungal", icon:"fa-splotch", risk:"warn",
+    causes:["Colletotrichum fungi favouring warm, wet, humid weather","Spreads through rain splash and infected plant debris"],
+    symptoms:["Dark, sunken irregular spots on leaves, stems or fruit","Spots may show pinkish spore masses in humid weather","Leaf tips and margins may die back"],
+    treatment:["Remove and destroy infected plant parts","Apply a copper or chlorothalonil fungicide","Improve air circulation around plants"],
+    prevention:["Avoid overhead watering","Remove plant debris at season end","Rotate susceptible crops"],
+    keywords:["anthracnose","sunken spots","dark irregular spots","dieback","pink spore mass"] },
+
+  { id:"nutrient-nitrogen", name:"Nutrient Deficiency (Nitrogen)", category:"Nutrient", icon:"fa-vial", risk:"warn",
+    causes:["Low nitrogen availability in soil","Overwatering leaching nutrients away","Poor or exhausted soil"],
+    symptoms:["Uniform pale yellowing starting with older, lower leaves","Slower growth and smaller leaves","Overall pale green appearance"],
+    treatment:["Apply a balanced NPK or nitrogen-rich fertilizer","Add compost or well-rotted manure","Correct overwatering / improve drainage"],
+    prevention:["Test soil before each growing season","Feed on a regular fertilizing schedule","Use mulch to retain nutrients"],
+    keywords:["yellow leaves overall","pale yellow","nitrogen deficiency","uniform yellowing","slow growth"] },
+
+  { id:"nutrient-iron", name:"Iron Deficiency (Chlorosis)", category:"Nutrient", icon:"fa-flask", risk:"warn",
+    causes:["High soil pH locking out iron","Overwatering or poor drainage","Root damage limiting nutrient uptake"],
+    symptoms:["Yellowing between the leaf veins while veins stay green","Usually starts on newer, younger leaves","Leaf edges may scorch in severe cases"],
+    treatment:["Apply a chelated iron foliar spray","Lower soil pH slightly with sulfur or acidifying fertilizer","Improve soil drainage"],
+    prevention:["Test and adjust soil pH periodically","Avoid overwatering","Use iron-rich organic compost"],
+    keywords:["interveinal yellowing","veins green yellow between","iron deficiency","chlorosis","yellow between veins"] },
+
+  { id:"pest-damage", name:"Pest Damage (Mites/Insects)", category:"Pest", icon:"fa-bug", risk:"warn",
+    causes:["Spider mites, aphids or chewing insects feeding on leaf tissue","Hot, dry, dusty conditions favour mite outbreaks"],
+    symptoms:["Tiny yellow/white speckles (stippling) or fine webbing","Irregular holes or chewed leaf margins","Sticky honeydew residue with sooty mould"],
+    treatment:["Spray insecticidal soap or neem oil, covering undersides of leaves","Introduce beneficial insects like ladybugs","Rinse leaves with a strong water spray to dislodge mites"],
+    prevention:["Inspect leaf undersides regularly","Avoid drought stress on plants","Keep plants dust-free and well-watered"],
+    keywords:["holes in leaves","chewed leaves","webbing","sticky leaves","tiny bugs","stippling","insects"] }
+];
+
+/* ============================================================
+   MULTI-FEATURE LEAF ANALYSIS
+   Downsamples the image and extracts several colour/texture
+   features (green, yellow-brown, dark, pale/white, grayish and
+   lesion/spot density via block-variance) so different photos
+   are mapped to different, specific diagnoses instead of one
+   generic result. This is a deterministic computer-vision
+   heuristic — a lightweight stand-in for a trained CNN model,
+   built to be transparent about what it can and can't detect.
+   ============================================================ */
+function analyzeImage(imgEl){
+  const canvas = document.createElement("canvas");
+  const size = 120;
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(imgEl, 0, 0, size, size);
+  const data = ctx.getImageData(0, 0, size, size).data;
+
+  let green = 0, yellowBrown = 0, dark = 0, pale = 0, gray = 0, total = 0;
+  const brightnessGrid = [];
+  for (let y = 0; y < size; y++){
+    for (let x = 0; x < size; x++){
+      const i = (y * size + x) * 4;
+      const r = data[i], g = data[i+1], b = data[i+2];
+      total++;
+      const brightness = (r + g + b) / 3;
+      brightnessGrid.push(brightness);
+      const maxc = Math.max(r,g,b), minc = Math.min(r,g,b);
+      const sat = maxc - minc;
+      if (g > r + 12 && g > b + 12) green++;
+      else if (r > 120 && g > 90 && b < 100 && r >= g) yellowBrown++;
+      else if (brightness > 195 && sat < 25) pale++;
+      else if (sat < 18 && brightness > 90 && brightness < 175) gray++;
+      else if (brightness < 65) dark++;
+    }
+  }
+  const greenRatio = green / total;
+  const yellowRatio = yellowBrown / total;
+  const darkRatio = dark / total;
+  const paleRatio = pale / total;
+  const grayRatio = gray / total;
+
+  // block-variance "spot density" — proxy for lesion/pustule count
+  const block = 12, grid = size / block;
+  let spotBlocks = 0, blockCount = 0;
+  for (let by = 0; by < grid; by++){
+    for (let bx = 0; bx < grid; bx++){
+      let sum = 0, sumSq = 0, n = 0;
+      for (let y = by*block; y < by*block+block; y++){
+        for (let x = bx*block; x < bx*block+block; x++){
+          const v = brightnessGrid[y*size+x];
+          sum += v; sumSq += v*v; n++;
+        }
+      }
+      const mean = sum/n;
+      const variance = (sumSq/n) - (mean*mean);
+      if (variance > 950) spotBlocks++;
+      blockCount++;
+    }
+  }
+  const spotDensity = spotBlocks / blockCount;
+
+  let pick, confidence;
+  if (paleRatio > 0.16 && spotDensity > 0.12){
+    pick = "powdery-mildew"; confidence = 80 + Math.round(paleRatio*60);
+  } else if (grayRatio > 0.16 && yellowRatio > 0.04){
+    pick = "downy-mildew"; confidence = 78 + Math.round(grayRatio*55);
+  } else if (darkRatio > 0.20 && spotDensity > 0.32){
+    pick = "late-blight"; confidence = 82 + Math.round(darkRatio*45);
+  } else if (darkRatio > 0.11 && spotDensity >= 0.16 && spotDensity <= 0.34){
+    pick = "early-blight"; confidence = 80 + Math.round(darkRatio*45);
+  } else if (darkRatio > 0.05 && darkRatio <= 0.12 && spotDensity > 0.30){
+    pick = "bacterial-spot"; confidence = 77 + Math.round(spotDensity*45);
+  } else if (spotDensity > 0.28 && darkRatio < 0.10 && yellowRatio < 0.10 && greenRatio > 0.3){
+    pick = "rust"; confidence = 78 + Math.round(spotDensity*50);
+  } else if (paleRatio > 0.08 && spotDensity > 0.22 && darkRatio < 0.08){
+    pick = "pest-damage"; confidence = 74 + Math.round(spotDensity*50);
+  } else if (yellowRatio > 0.28 && spotDensity < 0.10 && greenRatio < 0.35){
+    pick = "mosaic-virus"; confidence = 76 + Math.round(yellowRatio*45);
+  } else if (yellowRatio > 0.20 && darkRatio < 0.05 && greenRatio < 0.45){
+    pick = "nutrient-nitrogen"; confidence = 78 + Math.round(yellowRatio*50);
+  } else if (yellowRatio > 0.08 && yellowRatio <= 0.20 && greenRatio > 0.35){
+    pick = "nutrient-iron"; confidence = 75 + Math.round(yellowRatio*60);
+  } else if (yellowRatio > 0.08 && darkRatio > 0.06 && spotDensity < 0.16){
+    pick = "anthracnose"; confidence = 76 + Math.round((yellowRatio+darkRatio)*40);
+  } else if (greenRatio > 0.60 && yellowRatio < 0.08 && darkRatio < 0.05 && spotDensity < 0.08){
+    pick = "healthy"; confidence = 90 + Math.round(greenRatio*9);
+  } else {
+    pick = "anthracnose"; confidence = 70 + Math.round((1-greenRatio)*25);
+  }
+
+  confidence = Math.min(99, Math.max(60, confidence));
+  const diagnosis = DISEASE_DB.find(d => d.id === pick) || DISEASE_DB[0];
+  return { diagnosis, confidence };
+}
+
+/* ============================================================
+   SCAN FLOW
+   ============================================================ */
+const disease = document.getElementById("disease");
+const accuracy = document.getElementById("accuracy");
+const gauge = document.getElementById("gauge");
+const confLabel = document.getElementById("confLabel");
+const adviceBox = document.getElementById("adviceBox");
+
+let lastResult = null;
+
+scanBtn.addEventListener("click", () => {
+  if (!selectedImageEl){
+    toast("Please upload or capture a leaf image first.", "warn");
+    return;
+  }
+  scanBtn.disabled = true;
+  disease.textContent = "Scanning…";
+  confLabel.textContent = "Analyzing leaf texture and color…";
+  accuracy.textContent = "0%";
+  gauge.style.setProperty("--pct", 0);
+  adviceBox.style.display = "none";
+
+  let value = 0;
+  const timer = setInterval(() => {
+    value += 4;
+    if (value >= 100){
+      value = 100;
+      clearInterval(timer);
+      finishScan();
+    }
+    gauge.style.setProperty("--pct", value);
+    accuracy.textContent = value + "%";
+  }, 45);
+});
+
+function severityLabel(risk){
+  return risk === "danger" ? "High severity" : risk === "warn" ? "Needs attention" : "Healthy";
+}
+function severityBadgeClass(risk){
+  return risk === "danger" ? "danger" : risk === "warn" ? "warn" : "ok";
+}
+
+async function renderAdviceBox(d){
+  const lang = store.get("agro_lang", "en");
+  let name = d.name, sevLabel = severityLabel(d.risk), category = d.category;
+  let causes = d.causes, symptoms = d.symptoms, treatment = d.treatment, prevention = d.prevention;
+  if (lang !== "en"){
+    [name, sevLabel, category] = await Promise.all([
+      translateText(d.name, "en", lang), translateText(severityLabel(d.risk), "en", lang), translateText(d.category, "en", lang)
+    ]);
+    [causes, symptoms, treatment, prevention] = await Promise.all([
+      Promise.all(d.causes.map(c => translateText(c, "en", lang))),
+      Promise.all(d.symptoms.map(c => translateText(c, "en", lang))),
+      Promise.all(d.treatment.map(c => translateText(c, "en", lang))),
+      Promise.all(d.prevention.map(c => translateText(c, "en", lang)))
+    ]);
+  }
+  const listHtml = arr => "<ul class='adv-list'>" + arr.map(x => "<li>" + x + "</li>").join("") + "</ul>";
+  adviceBox.innerHTML =
+    "<div class='adv-head'><span class='badge " + severityBadgeClass(d.risk) + "'>" + sevLabel + "</span>" +
+    "<span class='adv-cat'><i class='fa-solid " + d.icon + "'></i> " + category + "</span></div>" +
+    "<div class='adv-section'><h4>🔎 Causes</h4>" + listHtml(causes) + "</div>" +
+    "<div class='adv-section'><h4>🩺 Symptoms</h4>" + listHtml(symptoms) + "</div>" +
+    "<div class='adv-section'><h4>💊 Treatment</h4>" + listHtml(treatment) + "</div>" +
+    "<div class='adv-section'><h4>🛡 Prevention</h4>" + listHtml(prevention) + "</div>" +
+    "<button class='ghost' id='learnMoreBtn' type='button' style='margin-top:6px;width:100%;'><i class='fa-solid fa-globe'></i> Learn more (from Wikipedia)</button>" +
+    "<div id='learnMorePanel' class='learn-more-panel'></div>";
+  adviceBox.style.display = "block";
+  document.getElementById("learnMoreBtn").addEventListener("click", () => fetchLearnMore(d.name));
+}
+
+async function fetchLearnMore(name){
+  const panel = document.getElementById("learnMorePanel");
+  panel.classList.add("show");
+  panel.textContent = "Fetching more detail from Wikipedia…";
+  try{
+    const title = encodeURIComponent(name.replace(/\s*\(.*?\)\s*/g, "").trim());
+    const res = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + title);
+    if (!res.ok) throw new Error("not found");
+    const data = await res.json();
+    let extract = data.extract || "No additional summary is available for this term.";
+    const lang = store.get("agro_lang", "en");
+    if (lang !== "en") extract = await translateText(extract, "en", lang);
+    const link = (data.content_urls && data.content_urls.desktop && data.content_urls.desktop.page) || ("https://en.wikipedia.org/wiki/" + title);
+    panel.innerHTML = "<p>" + extract + "</p><a href='" + link + "' target='_blank' rel='noopener'>Source: Wikipedia ↗</a>";
+  } catch(e){
+    panel.textContent = "Couldn't reach Wikipedia right now — check your connection and try again.";
+  }
+}
+
+function finishScan(){
+  const result = analyzeImage(selectedImageEl);
+  lastResult = result;
+  disease.textContent = result.diagnosis.name;
+  accuracy.textContent = result.confidence + "%";
+  gauge.style.setProperty("--pct", result.confidence);
+  confLabel.textContent = "Confidence " + result.confidence + "% · " + new Date().toLocaleString();
+  renderAdviceBox(result.diagnosis);
+  scanBtn.disabled = false;
+  saveScanToHistory(result);
+  toast("Scan complete: " + result.diagnosis.name);
+}
+
+/* ============================================================
+   HISTORY (persisted)
+   ============================================================ */
+function saveScanToHistory(result){
+  const history = store.get(historyKey(), []);
+  history.unshift({
+    id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+    time: new Date().toISOString(),
+    diagnosisId: result.diagnosis.id,
+    name: result.diagnosis.name,
+    confidence: result.confidence,
+    risk: result.diagnosis.risk
+  });
+  store.set(historyKey(), history.slice(0, 50));
+  renderHistory();
+  renderDashboardStats();
+  renderReportsList();
+}
+
+function renderHistory(){
+  const history = store.get(historyKey(), []);
+  const body = document.getElementById("historyBody");
+  const empty = document.getElementById("historyEmpty");
+  body.innerHTML = "";
+  if (!history.length){ empty.style.display = "block"; return; }
+  empty.style.display = "none";
+  history.forEach(h => {
+    const tr = document.createElement("tr");
+    const badgeClass = h.risk === "ok" ? "ok" : "warn";
+    tr.innerHTML =
+      "<td>" + new Date(h.time).toLocaleString() + "</td>" +
+      "<td>" + h.name + "</td>" +
+      "<td><span class='badge " + badgeClass + "'>" + h.confidence + "%</span></td>";
+    body.appendChild(tr);
+  });
+}
+
+function renderReportsList(){
+  const history = store.get(historyKey(), []);
+  const body = document.getElementById("reportsListBody");
+  const empty = document.getElementById("reportsListEmpty");
+  if (!body) return;
+  body.innerHTML = "";
+  if (!history.length){ empty.style.display = "block"; return; }
+  empty.style.display = "none";
+  history.forEach(h => {
+    const tr = document.createElement("tr");
+    const badgeClass = h.risk === "ok" ? "ok" : h.risk === "danger" ? "danger" : "warn";
+    tr.innerHTML =
+      "<td>" + new Date(h.time).toLocaleString() + "</td>" +
+      "<td>" + h.name + "</td>" +
+      "<td><span class='badge " + badgeClass + "'>" + h.confidence + "%</span></td>" +
+      "<td class='row-actions'>" +
+        "<button class='ghost row-btn' data-view='" + h.id + "' type='button'>View</button>" +
+        "<button class='row-btn' data-pdf='" + h.id + "' type='button'>PDF</button>" +
+      "</td>";
+    body.appendChild(tr);
+  });
+  body.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => openReportDetail(btn.dataset.view)));
+  body.querySelectorAll("[data-pdf]").forEach(btn => btn.addEventListener("click", () => downloadPastReport(btn.dataset.pdf)));
+}
+
+function findHistoryEntry(id){
+  return store.get(historyKey(), []).find(h => h.id === id);
+}
+
+function openReportDetail(id){
+  const entry = findHistoryEntry(id);
+  if (!entry) return;
+  const d = DISEASE_DB.find(x => x.id === entry.diagnosisId) || DISEASE_DB[0];
+  const listHtml = arr => "<ul class='adv-list'>" + arr.map(x => "<li>" + x + "</li>").join("") + "</ul>";
+  document.getElementById("reportDetailBody").innerHTML =
+    "<div class='adv-head'><span class='badge " + severityBadgeClass(d.risk) + "'>" + severityLabel(d.risk) + "</span>" +
+    "<span class='adv-cat'><i class='fa-solid " + d.icon + "'></i> " + d.category + "</span></div>" +
+    "<p class='conf' style='margin:10px 0;'>" + new Date(entry.time).toLocaleString() + " · " + entry.confidence + "% confidence</p>" +
+    "<div class='adv-section'><h4>🔎 Causes</h4>" + listHtml(d.causes) + "</div>" +
+    "<div class='adv-section'><h4>🩺 Symptoms</h4>" + listHtml(d.symptoms) + "</div>" +
+    "<div class='adv-section'><h4>💊 Treatment</h4>" + listHtml(d.treatment) + "</div>" +
+    "<div class='adv-section'><h4>🛡 Prevention</h4>" + listHtml(d.prevention) + "</div>";
+  document.getElementById("reportDetailPdfBtn").onclick = () => downloadPastReport(id);
+  openModal("reportDetailModal");
+}
+
+function downloadPastReport(id){
+  const entry = findHistoryEntry(id);
+  if (!entry) return;
+  const d = DISEASE_DB.find(x => x.id === entry.diagnosisId) || DISEASE_DB[0];
+  buildReportPDF(d, entry.confidence, new Date(entry.time));
+  toast("PDF report downloaded.");
+}
+
+function renderDashboardStats(){
+  const history = store.get(historyKey(), []);
+  document.getElementById("statScans").textContent = history.length;
+  document.getElementById("sideScanCount").textContent = history.length;
+
+  const recent = history.slice(0, 10);
+  const healthyCount = recent.filter(h => h.risk === "ok").length;
+  const healthPct = recent.length ? Math.round((healthyCount / recent.length) * 100) : 98;
+  const riskPct = recent.length ? Math.round(100 - healthPct) : 12;
+  document.getElementById("statHealth").textContent = healthPct + "%";
+  document.getElementById("statRisk").textContent = riskPct + "%";
+  document.getElementById("heroRing").style.setProperty("--pct", healthPct);
+  document.getElementById("heroRingValue").textContent = healthPct + "%";
+
+  updateCharts(history);
+}
+
+document.getElementById("clearHistoryBtn").addEventListener("click", () => {
+  confirmAction("Clear scan history?", "This will permanently remove all saved scans from this device. This cannot be undone.", () => {
+    store.set(historyKey(), []);
+    renderHistory();
+    renderDashboardStats();
+    renderReportsList();
+    toast("Scan history cleared.");
+  });
+});
+
+/* ============================================================
+   VOICE REPLIES TOGGLE
+   ============================================================ */
+const voiceReplySwitch = document.getElementById("voiceReplySwitch");
+function applyVoiceReplyPref(on){
+  voiceReplySwitch.classList.toggle("on", on);
+  store.set("agro_voice_reply", on);
+}
+applyVoiceReplyPref(store.get("agro_voice_reply", true));
+voiceReplySwitch.addEventListener("click", () => applyVoiceReplyPref(!voiceReplySwitch.classList.contains("on")));
+
+/* ============================================================
+   CHARTS
+   ============================================================ */
+let mainChart;
+function buildCharts(){
+  const ctx1 = document.getElementById("myChart");
+  const cfg = labels => ({
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Health Score",
+        data: labels.map(() => 90),
+        borderColor: getComputedStyle(document.body).getPropertyValue("--accent") || "#7fb069",
+        backgroundColor: "rgba(127,176,105,.18)",
+        fill: true, tension: .4, pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue("--text") } } },
+      scales: {
+        x: { ticks: { color: getComputedStyle(document.body).getPropertyValue("--text-dim") }, grid: { color: "rgba(127,176,105,.08)" } },
+        y: { ticks: { color: getComputedStyle(document.body).getPropertyValue("--text-dim") }, grid: { color: "rgba(127,176,105,.08)" } }
+      }
+    }
+  });
+  mainChart = new Chart(ctx1, cfg(["Jan","Feb","Mar","Apr","May","Jun"]));
+}
+
+function updateCharts(history){
+  if (!mainChart) return;
+  const ordered = history.slice(0, 8).reverse();
+  if (!ordered.length) return;
+  const labels = ordered.map(h => new Date(h.time).toLocaleDateString(undefined, { month: "short", day: "numeric" }));
+  const scores = ordered.map(h => h.risk === "ok" ? h.confidence : 100 - h.confidence);
+  mainChart.data.labels = labels;
+  mainChart.data.datasets[0].data = scores;
+  mainChart.update();
+}
+
+/* ============================================================
+   CAMERA
+   ============================================================ */
+const camera = document.getElementById("camera");
+const captureCanvas = document.getElementById("captureCanvas");
+const openCameraBtn = document.getElementById("openCamera");
+const captureBtn = document.getElementById("captureImage");
+const stopCameraBtn = document.getElementById("stopCamera");
+let cameraStream = null;
+
+openCameraBtn.addEventListener("click", async () => {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    camera.srcObject = cameraStream;
+    captureBtn.disabled = false;
+    stopCameraBtn.disabled = false;
+    toast("Camera started.");
+  } catch (err) {
+    toast("Camera permission denied.", "err");
+  }
+});
+
+captureBtn.addEventListener("click", () => {
+  const w = camera.videoWidth, h = camera.videoHeight;
+  if (!w || !h){ toast("Camera not ready yet.", "warn"); return; }
+  captureCanvas.width = w; captureCanvas.height = h;
+  captureCanvas.getContext("2d").drawImage(camera, 0, 0, w, h);
+  const dataUrl = captureCanvas.toDataURL("image/png");
+  loadPreview(dataUrl);
+  toast("Frame captured — ready to scan.");
+});
+
+function stopCameraStream(){
+  if (cameraStream){
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+    camera.srcObject = null;
+    captureBtn.disabled = true;
+    stopCameraBtn.disabled = true;
+  }
+}
+stopCameraBtn.addEventListener("click", () => { stopCameraStream(); toast("Camera stopped."); });
+window.addEventListener("beforeunload", stopCameraStream);
+
+/* ============================================================
+   CHATBOT
+   ============================================================ */
+const chatBody = document.getElementById("chatBody");
+const chatInput = document.getElementById("chatInput");
+const sendBtn = document.getElementById("sendBtn");
+const chatbot = document.getElementById("chatbot");
+const chatToggle = document.getElementById("chatToggle");
+const chatChevron = document.getElementById("chatChevron");
+
+chatToggle.addEventListener("click", () => {
+  chatbot.classList.toggle("collapsed");
+  chatChevron.classList.toggle("fa-chevron-down");
+  chatChevron.classList.toggle("fa-chevron-up");
+});
+
+document.getElementById("heroScanBtn").addEventListener("click", () => goToPage("scan"));
+document.getElementById("heroChatBtn").addEventListener("click", () => {
+  chatbot.classList.remove("collapsed");
+  chatChevron.classList.add("fa-chevron-down");
+  chatChevron.classList.remove("fa-chevron-up");
+  chatInput.focus();
+});
+
+const REPLIES = [
+  { keys: ["healthy"], reply: "Great news — a healthy plant just needs consistent watering, sunlight, and good airflow." },
+  { keys: ["water", "watering"], reply: "Water deeply in the early morning so leaves dry before evening — this reduces fungal risk." },
+  { keys: ["fertilizer", "nutrient", "feed"], reply: "A balanced NPK fertilizer every 2-3 weeks works well for most vegetables during growing season." },
+  { keys: ["weather", "temperature"], reply: "Check the Weather tab for live conditions — humidity and temperature both affect disease risk." },
+  { keys: ["hi", "hello", "hey", "namaste"], reply: "Hello! Describe what you're seeing on your plant's leaves — spots, yellowing, curling, wilting, holes — and I'll help diagnose it." }
+];
+
+/* ---- Smart symptom-based diagnosis for free-text descriptions ---- */
+function diagnoseFromText(msg){
+  const lower = " " + msg.toLowerCase() + " ";
+  let best = null, bestScore = 0;
+  DISEASE_DB.forEach(d => {
+    let score = 0;
+    d.keywords.forEach(k => { if (lower.includes(k.toLowerCase())) score += 2; });
+    d.symptoms.forEach(s => { s.toLowerCase().split(/[^a-z]+/).forEach(w => { if (w.length > 4 && lower.includes(w)) score += 1; }); });
+    if (lower.includes(d.name.toLowerCase())) score += 3;
+    if (score > bestScore){ bestScore = score; best = d; }
+  });
+  if (!best || bestScore < 2) return null;
+  return "That sounds like it could be " + best.name + " (" + best.category + ", " + severityLabel(best.risk) + ").\n" +
+    "Likely cause: " + best.causes[0] + "\n" +
+    "What to do: " + best.treatment.slice(0,2).join(" ") + "\n" +
+    "Prevention: " + best.prevention[0];
+}
+
+function botReplyEnglish(msg){
+  const smart = diagnoseFromText(msg);
+  if (smart) return smart;
+  const lower = msg.toLowerCase();
+  const match = REPLIES.find(r => r.keys.some(k => lower.includes(k)));
+  return match ? match.reply : "I'm not fully sure about that yet — try describing the leaf symptoms (spots, colour, curling, wilting) or ask about watering, pests, or fertilizer.";
+}
+
+function appendChat(text, who){
+  const div = document.createElement("div");
+  div.className = "msg " + who;
+  div.textContent = text;
+  chatBody.appendChild(div);
+  chatBody.scrollTop = chatBody.scrollHeight;
+  if (who === "bot") speak(text);
+}
+
+function speak(text){
+  if (!("speechSynthesis" in window)) return;
+  if (!store.get("agro_voice_reply", true)) return;
+  try{
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = SPEECH_LOCALE[store.get("agro_lang", "en")] || "en-IN";
+    utter.rate = 1; utter.pitch = 1;
+    window.speechSynthesis.speak(utter);
+  }catch(e){ /* speech unsupported */ }
+}
+
+async function sendChat(){
+  const val = chatInput.value.trim();
+  if (!val) return;
+  appendChat(val, "user");
+  chatInput.value = "";
+  const lang = store.get("agro_lang", "en");
+  const forMatching = lang === "en" ? val : await translateText(val, lang, "en");
+  let reply = botReplyEnglish(forMatching);
+  if (lang !== "en") reply = await translateText(reply, "en", lang);
+  setTimeout(() => appendChat(reply, "bot"), 300);
+}
+sendBtn.addEventListener("click", sendChat);
+chatInput.addEventListener("keydown", e => { if (e.key === "Enter") sendChat(); });
+
+/* ============================================================
+   VOICE ASSISTANT
+   ============================================================ */
+const voiceFab = document.getElementById("voiceFab");
+const voiceIcon = document.getElementById("voiceIcon");
+const voiceStatus = document.getElementById("voiceStatus");
+const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null, isListening = false;
+
+function setVoiceStatus(text, show){
+  voiceStatus.textContent = text;
+  voiceStatus.classList.toggle("show", !!show);
+}
+
+function goToPage(name){
+  const item = document.querySelector('.nav-list li[data-page="' + name + '"]');
+  if (item) item.click();
+}
+
+async function handleVoiceCommand(transcriptRaw){
+  appendChat(transcriptRaw, "user");
+  const lang = store.get("agro_lang", "en");
+  const t = (lang === "en" ? transcriptRaw : await translateText(transcriptRaw, lang, "en")).toLowerCase();
+
+  let englishReply = null;
+  if (t.includes("dashboard") || t.includes("home")){ goToPage("dashboard"); englishReply = "Opening your dashboard."; }
+  else if (t.includes("scan")){ goToPage("scan"); englishReply = "Opening the scan page. Upload or capture a leaf when ready."; }
+  else if (t.includes("weather")){ goToPage("dashboard"); initWeather(); englishReply = "Here's the latest weather for your location, on your dashboard."; }
+  else if (t.includes("analytics") || t.includes("history")){ goToPage("dashboard"); englishReply = "Your scan analytics and history are on the dashboard."; }
+  else if (t.includes("report") || t.includes("pdf")){ goToPage("reports"); englishReply = "Opening the reports page."; }
+  else if (t.includes("setting")){ goToPage("settings"); englishReply = "Here are your settings."; }
+  else if (t.includes("dark mode")){ applyTheme(false); englishReply = "Switched to dark mode."; }
+  else if (t.includes("light mode")){ applyTheme(true); englishReply = "Switched to light mode."; }
+  else if (t.includes("clear history")){
+    goToPage("settings");
+    confirmAction("Clear scan history?", "This will permanently remove all saved scans from this device.", () => {
+      store.set(historyKey(), []); renderHistory(); renderDashboardStats(); renderReportsList(); toast("Scan history cleared.");
+    });
+    englishReply = "Please confirm clearing your scan history in the dialog.";
+  }
+  else if (t.includes("temperature") || t.includes("weather now")){
+    const temp = document.getElementById("statTemp").textContent;
+    englishReply = "It's currently " + temp + " near you.";
+  }
+  else {
+    englishReply = botReplyEnglish(t);
+  }
+
+  const finalReply = lang === "en" ? englishReply : await translateText(englishReply, "en", lang);
+  respond(finalReply);
+}
+function respond(text){ appendChat(text, "bot"); }
+
+function initVoiceRecognition(){
+  if (!SpeechRecognitionAPI){
+    voiceFab.title = "Voice input isn't supported in this browser";
+    return;
+  }
+  recognizer = new SpeechRecognitionAPI();
+  recognizer.lang = SPEECH_LOCALE[store.get("agro_lang", "en")] || "en-IN";
+  recognizer.interimResults = false;
+  recognizer.maxAlternatives = 1;
+
+  recognizer.onstart = () => {
+    isListening = true;
+    voiceFab.classList.add("listening");
+    voiceIcon.className = "fa-solid fa-microphone-lines";
+    setVoiceStatus("Listening…", true);
+  };
+  recognizer.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    setVoiceStatus('Heard: "' + transcript + '"', true);
+    handleVoiceCommand(transcript);
+    setTimeout(() => setVoiceStatus("", false), 3500);
+  };
+  recognizer.onerror = () => {
+    setVoiceStatus("Didn't catch that — try again.", true);
+    setTimeout(() => setVoiceStatus("", false), 2500);
+  };
+  recognizer.onend = () => {
+    isListening = false;
+    voiceFab.classList.remove("listening");
+    voiceIcon.className = "fa-solid fa-microphone";
+  };
+}
+initVoiceRecognition();
+
+voiceFab.addEventListener("click", () => {
+  if (!SpeechRecognitionAPI){ toast("Voice input isn't supported in this browser.", "warn"); return; }
+  if (isListening){ recognizer.stop(); return; }
+  try{
+    window.speechSynthesis.cancel();
+    recognizer.start();
+  }catch(e){ /* already started */ }
+});
+
+/* ============================================================
+   PDF REPORT
+   ============================================================ */
+function updateReportSummary(){
+  const el = document.getElementById("reportSummary");
+  if (!lastResult){ el.textContent = "Run a scan first to generate a report."; return; }
+  el.textContent = "Diagnosis: " + lastResult.diagnosis.name + " · Confidence: " + lastResult.confidence + "%";
+}
+
+function buildReportPDF(d, confidence, whenDate){
+  const u = getCurrentUser();
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+  let y = 22;
+  pdf.setFontSize(18);
+  pdf.text("AgroGenius AI — Diagnostic Report", 20, y); y += 12;
+  pdf.setFontSize(11);
+  pdf.text("Generated: " + new Date().toLocaleString(), 20, y); y += 6;
+  pdf.text("Scan date: " + whenDate.toLocaleString(), 20, y); y += 6;
+  if (u && (u.email || u.phone)){
+    pdf.text("Account: " + (u.name ? u.name + " · " : "") + (u.email || u.phone), 20, y); y += 6;
+  }
+  pdf.line(20, y, 190, y); y += 12;
+
+  pdf.setFontSize(14);
+  pdf.text("Diagnosis: " + d.name + " (" + d.category + ")", 20, y); y += 9;
+  pdf.text("Confidence: " + confidence + "%  ·  Severity: " + severityLabel(d.risk), 20, y); y += 12;
+
+  const section = (title, items) => {
+    pdf.setFontSize(12);
+    pdf.text(title, 20, y); y += 7;
+    pdf.setFontSize(10);
+    items.forEach(item => {
+      const lines = pdf.splitTextToSize("• " + item, 165);
+      if (y + lines.length * 5 > 280){ pdf.addPage(); y = 20; }
+      pdf.text(lines, 24, y);
+      y += lines.length * 5 + 2;
+    });
+    y += 5;
+  };
+  section("Causes", d.causes);
+  section("Symptoms", d.symptoms);
+  section("Recommended Treatment", d.treatment);
+  section("Prevention", d.prevention);
+
+  pdf.save("AgroGenius_Report_" + d.id + "_" + whenDate.getTime() + ".pdf");
+}
+
+document.getElementById("downloadPDF").addEventListener("click", () => {
+  if (!lastResult){ toast("Run a scan first.", "warn"); return; }
+  buildReportPDF(lastResult.diagnosis, lastResult.confidence, new Date());
+  toast("PDF report downloaded.");
+});
+
+/* ============================================================
+   WEATHER (Open-Meteo — free, no API key)
+   ============================================================ */
+const weatherIconMap = {
+  0:"fa-sun",1:"fa-cloud-sun",2:"fa-cloud-sun",3:"fa-cloud",
+  45:"fa-smog",48:"fa-smog",51:"fa-cloud-rain",61:"fa-cloud-rain",
+  63:"fa-cloud-rain",65:"fa-cloud-showers-heavy",71:"fa-snowflake",
+  80:"fa-cloud-rain",95:"fa-bolt"
+};
+
+async function reverseGeocode(lat, lon){
+  try{
+    const url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + lat + "&longitude=" + lon + "&localityLanguage=en";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("geocode failed");
+    const data = await res.json();
+    const place = data.city || data.locality || data.principalSubdivision;
+    return place ? (place + (data.countryName ? ", " + data.countryName : "")) : "Your location";
+  } catch(e){
+    return "Your location";
+  }
+}
+
+async function loadWeather(lat, lon, label){
+  document.getElementById("condition").textContent = "Loading…";
+  try{
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
+      "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,precipitation_probability,weather_code&timezone=auto";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Weather request failed (" + res.status + ")");
+    const data = await res.json();
+    const c = data.current;
+    if (!c || typeof c.temperature_2m !== "number") throw new Error("Malformed weather response");
+
+    const codeMap = { 0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Fog",51:"Light drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",71:"Light snow",80:"Rain showers",95:"Thunderstorm" };
+    const condition = codeMap[c.weather_code] || "Variable conditions";
+    const roundedTemp = Math.round(c.temperature_2m);
+    const feelsLike = Math.round(c.apparent_temperature ?? c.temperature_2m);
+
+    document.getElementById("weatherTemp").textContent = roundedTemp + "°C";
+    document.getElementById("condition").textContent = condition + " · Feels like " + feelsLike + "°C";
+    document.getElementById("city").textContent = label;
+    document.getElementById("weatherIcon").className = "fa-solid " + (weatherIconMap[c.weather_code] || "fa-cloud-sun");
+    document.getElementById("wHumidity").textContent = Math.round(c.relative_humidity_2m) + "%";
+    document.getElementById("wWind").textContent = Math.round(c.wind_speed_10m) + " km/h";
+    document.getElementById("wPrecip").textContent = Math.round(c.precipitation_probability ?? 0) + "%";
+    document.getElementById("wUpdated").textContent = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+
+    document.getElementById("statTemp").textContent = roundedTemp + "°C";
+    document.getElementById("statCity").textContent = label;
+  } catch(e){
+    toast("Couldn't reach the weather service — showing last known data.", "err");
+    document.getElementById("condition").textContent = "Unavailable, tap refresh to retry";
+  }
+}
+
+const locBadge = document.getElementById("locBadge");
+const locBadgeText = document.getElementById("locBadgeText");
+const enableLocationBtn = document.getElementById("enableLocationBtn");
+
+function setLocBadge(state, text){
+  locBadge.classList.remove("live", "err");
+  if (state) locBadge.classList.add(state);
+  locBadgeText.textContent = text;
+}
+
+function initWeather(){
+  const fallback = (label) => loadWeather(28.6139, 77.2090, label || "New Delhi (default)");
+  document.getElementById("city").textContent = "Locating…";
+  enableLocationBtn.style.display = "none";
+
+  // Most browsers block Geolocation on pages opened directly as a file
+  // (file://) or served over plain http — this is the #1 reason location
+  // looks "disabled" and the app silently shows the default city instead
+  // of asking for permission at all.
+  if (!window.isSecureContext){
+    setLocBadge("err", "Location blocked (needs HTTPS/localhost)");
+    toast("This page was opened directly, so the browser blocks location access. Serve it over HTTPS or localhost (e.g. a local dev server) to enable live GPS — showing default location for now.", "warn");
+    fallback();
+    return;
+  }
+
+  if (!navigator.geolocation){
+    setLocBadge("err", "Location not supported");
+    fallback();
+    return;
+  }
+
+  setLocBadge(null, "Locating…");
+
+  const useResult = async pos => {
+    const lat = pos.coords.latitude.toFixed(3), lon = pos.coords.longitude.toFixed(3);
+    setLocBadge("live", "Live location");
+    const place = await reverseGeocode(lat, lon);
+    loadWeather(lat, lon, place);
+  };
+
+  const useError = err => {
+    enableLocationBtn.style.display = "inline-flex";
+    if (err.code === 1){ // PERMISSION_DENIED
+      setLocBadge("err", "Location permission denied");
+      toast("Location access is blocked for this site. Click the lock/site-info icon in your address bar, allow Location, then tap \"Use my location\".", "warn");
+    } else if (err.code === 2){ // POSITION_UNAVAILABLE
+      setLocBadge("err", "Position unavailable");
+      toast("Couldn't determine your position — showing default city weather.", "warn");
+    } else { // TIMEOUT
+      setLocBadge("err", "Location request timed out");
+      toast("Location request timed out — showing default city weather.", "warn");
+    }
+    fallback();
+  };
+
+  navigator.geolocation.getCurrentPosition(useResult, useError, { timeout: 10000, maximumAge: 300000, enableHighAccuracy: false });
+}
+document.getElementById("refreshWeather").addEventListener("click", initWeather);
+enableLocationBtn.addEventListener("click", initWeather);
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function bootApp(){
+  renderHistory();
+  renderDashboardStats();
+  renderReportsList();
+  initWeather();
+  resetResult();
+  refreshAccountSettingsRow();
+}
+
+buildCharts();
+captureOriginalStrings();
+document.getElementById("langSelect").addEventListener("change", (e) => {
+  applyLanguage(e.target.value);
+  if (typeof initVoiceRecognition === "function") initVoiceRecognition();
+});
+applyLanguage(store.get("agro_lang", "en"), { silent: true });
+
+if (getCurrentUser()){
+  hideLoginOverlay();
+  bootApp();
+} else {
+  showLoginOverlay();
+}
+</script>
+</body>
+</html>
