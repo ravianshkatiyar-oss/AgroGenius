@@ -16,8 +16,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
 /* ============ TOKENS ============ */
 :root{
@@ -90,7 +91,7 @@ body::before{
   background:
     radial-gradient(circle at 15% 10%, var(--radial-a), transparent 45%),
     radial-gradient(circle at 85% 90%, var(--radial-b), transparent 40%),
-    linear-gradient(160deg,var(--bg-grad-1),var(--bg-grad-2)); 
+    linear-gradient(160deg,var(--bg-grad-1),var(--bg-grad-2));
   z-index:-2;
   transition:background .6s ease;
 }
@@ -182,12 +183,12 @@ header.top p{color:var(--text-dim);margin-top:4px;}
 /* ============ CARDS ============ */
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:30px;}
 .card{
-    background: var(--surface);
+    background: rgba(255,255,255,.08);
     padding:22px;
     border-radius:20px;
     backdrop-filter:blur(18px);
     -webkit-backdrop-filter:blur(18px);
-    border:1px solid var(--border);
+    border:1px solid rgba(255,255,255,.12);
     box-shadow:0 10px 30px rgba(0,0,0,.25);
     transition:all .35s ease;
     position:relative;
@@ -472,8 +473,6 @@ body.light .bg-swatch[data-bg="mono"]{background:linear-gradient(160deg,#f0f0f0,
 .voice-status-inline.show{max-height:40px;opacity:1;}
 .voice-toggle-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border-radius:10px;margin-top:14px;font-size:13px;color:var(--text-dim);}
 
-.lang-select{width:100%;max-width:320px;padding:11px 14px;border-radius:10px;background:var(--surface-solid);color:var(--text);border:1px solid var(--border);font-size:14px;}
-
 /* ============ RESPONSIVE ============ */
 @media(max-width:1100px){
   .cards{grid-template-columns:repeat(4,1fr);}
@@ -485,7 +484,7 @@ body.light .bg-swatch[data-bg="mono"]{background:linear-gradient(160deg,#f0f0f0,
   .sidebar{width:76px;padding:20px 12px;}
   .logo h2,.logo span.tag,.nav-list span,.sidebar-foot{display:none;}
   .nav-list li{justify-content:center;padding:14px;}
-  .main{margin-left:96px;width:calc(100% - 96px);}
+  .main{margin-left:96px;}
   .hero-banner{flex-direction:column;align-items:flex-start;}
   .hero-side{width:100%;justify-content:space-between;}
 }
@@ -498,7 +497,7 @@ body.light .bg-swatch[data-bg="mono"]{background:linear-gradient(160deg,#f0f0f0,
   .hero-actions button{flex:1;}
   .hero-side{flex-direction:column;align-items:flex-start;gap:16px;}
   .chatbot{width:calc(100% - 30px);right:15px;bottom:15px;}
-  .btn-row button,.hero-actions button,.login-btn{width:100%;}
+  button{width:100%;}
   .btn-row{flex-direction:column;}
 }
 </style>
@@ -877,16 +876,6 @@ function toast(msg, type){
   setTimeout(() => { el.style.opacity = "0"; el.style.transition = ".3s"; setTimeout(() => el.remove(), 300); }, 3200);
 }
 
-function esc(v){
-  return String(v === undefined || v === null ? "" : v)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-function fmtConf(v){
-  const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(1).replace(/\.0$/, "") : "0";
-}
-
 const store = {
   get(key, fallback){
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
@@ -925,50 +914,22 @@ const SPEECH_LOCALE = {
 
 function i18nCacheKey(sourceLang, targetLang){ return "agro_tr_" + sourceLang + "_" + targetLang; }
 
-/* MyMemory accepts max ~500 chars per request, so long text is split on
-   sentence boundaries. The cache is re-read right before each write so
-   parallel translations don't overwrite each other's entries. */
-function splitForTranslation(text, max){
-  const parts = text.match(/[^.!?]+[.!?]*\s*/g) || [text];
-  const chunks = [];
-  let cur = "";
-  parts.forEach(p => {
-    if ((cur + p).length > max && cur){ chunks.push(cur); cur = ""; }
-    while (p.length > max){ chunks.push(p.slice(0, max)); p = p.slice(max); }
-    cur += p;
-  });
-  if (cur.trim()) chunks.push(cur);
-  return chunks;
-}
-
-async function translateChunk(text, sourceLang, targetLang){
+async function translateText(text, sourceLang, targetLang){
+  if (!text || !text.trim() || sourceLang === targetLang) return text;
+  const cache = store.get(i18nCacheKey(sourceLang, targetLang), {});
+  if (cache[text] !== undefined) return cache[text];
   try{
     const url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=" + sourceLang + "|" + targetLang;
     const res = await fetch(url);
     const data = await res.json();
-    const t = data && data.responseData && data.responseData.translatedText;
-    if (t && Number(data.responseStatus) === 200 && !/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(t)) return t;
-  } catch(e){ /* offline or blocked */ }
-  return null;
-}
-
-async function translateText(text, sourceLang, targetLang){
-  if (!text || !text.trim() || sourceLang === targetLang) return text;
-  const key = i18nCacheKey(sourceLang, targetLang);
-  const cached = store.get(key, {});
-  if (cached[text] !== undefined) return cached[text];
-
-  const out = [];
-  for (const chunk of splitForTranslation(text, 450)){
-    const t = await translateChunk(chunk, sourceLang, targetLang);
-    if (t === null) return text;          // fall back to the original text
-    out.push(t.trim());
-  }
-  const result = out.join(" ");
-  const fresh = store.get(key, {});       // re-read: other translations may have finished meanwhile
-  fresh[text] = result;
-  store.set(key, fresh);
-  return result;
+    const translated = data && data.responseData && data.responseData.translatedText;
+    if (translated && !/MYMEMORY WARNING/i.test(translated)){
+      cache[text] = translated;
+      store.set(i18nCacheKey(sourceLang, targetLang), cache);
+      return translated;
+    }
+  } catch(e){ /* offline or blocked — fall back to source text */ }
+  return text;
 }
 
 /* ============================================================
@@ -1006,7 +967,7 @@ const loginOverlay = document.getElementById("loginOverlay");
 const loginForm = document.getElementById("loginForm");
 const loginError = document.getElementById("loginError");
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^\+?[0-9]{7,15}$/;
+const PHONE_RE = /^[0-9]{7,15}$/;
 
 function showLoginOverlay(){
   loginForm.reset();
@@ -1046,7 +1007,6 @@ loginForm.addEventListener("submit", (e) => {
    LANGUAGE / UI TRANSLATION
    ============================================================ */
 let ORIGINAL_STRINGS = {};
-let CURRENT_STRINGS = {};
 let ORIGINAL_PLACEHOLDERS = {};
 function captureOriginalStrings(){
   document.querySelectorAll("[data-i18n]").forEach(el => {
@@ -1059,7 +1019,6 @@ function captureOriginalStrings(){
   });
 }
 function setStringsToDOM(key, text){
-  CURRENT_STRINGS[key] = text;
   document.querySelectorAll('[data-i18n="' + key + '"]').forEach(el => { el.textContent = text; });
 }
 function setPlaceholderToDOM(key, text){
@@ -1083,7 +1042,7 @@ async function applyLanguage(lang, opts){
       ...placeholderKeys.map(async k => setPlaceholderToDOM(k, await translateText(ORIGINAL_PLACEHOLDERS[k], "en", lang)))
     ]);
   }
-  if (lastResult && adviceBox.style.display === "block") renderAdviceBox(lastResult.diagnosis);
+  if (lastResult) renderAdviceBox(lastResult.diagnosis);
 }
 
 /* ============================================================
@@ -1136,7 +1095,7 @@ function buildNotifications(){
   items.push({ icon:"fa-cloud-sun", title:"Weather data refreshed for your area", time:"Just now" });
   if (!history.length) items.push({ icon:"fa-leaf", title:"Run your first scan to see AI diagnostics here", time:"Tip" });
   body.innerHTML = items.map(it =>
-    "<div class='notif-item'><i class='fa-solid " + it.icon + "'></i><div><div class='n-title'>" + esc(it.title) + "</div><div class='n-time'>" + it.time + "</div></div></div>"
+    "<div class='notif-item'><i class='fa-solid " + it.icon + "'></i><div><div class='n-title'>" + it.title + "</div><div class='n-time'>" + it.time + "</div></div></div>"
   ).join("");
 }
 document.getElementById("openNotifBtn").addEventListener("click", () => { buildNotifications(); openModal("notifModal"); });
@@ -1186,67 +1145,52 @@ const preview = document.getElementById("preview");
 const dropzone = document.getElementById("dropzone");
 const scanBtn = document.getElementById("scanBtn");
 const clearBtn = document.getElementById("clearBtn");
+let selectedImageEl = null; // an <img> or <canvas> source we can read pixels from
 
-const disease = document.getElementById("disease");
-const accuracy = document.getElementById("accuracy");
-const gauge = document.getElementById("gauge");
-const confLabel = document.getElementById("confLabel");
-const adviceBox = document.getElementById("adviceBox");
-
-let selectedFile = null;   // the File/Blob that is sent to the AI backend
-let previewUrl = null;
-
-function setSelectedFile(file){
-  if (!file) return;
-  if (!file.type || !file.type.startsWith("image/")){ toast("Please choose an image file.", "err"); return; }
-  selectedFile = file;
-  if (previewUrl) URL.revokeObjectURL(previewUrl);
-  previewUrl = URL.createObjectURL(file);
-  preview.src = previewUrl;
+function loadPreview(dataUrl){
+  preview.src = dataUrl;
   preview.style.display = "block";
-  resetResult();
+  const probe = new Image();
+  probe.onload = () => { selectedImageEl = probe; };
+  probe.src = dataUrl;
 }
 
 imageInput.addEventListener("change", function(){
-  const file = this.files && this.files[0];
-  this.value = "";            // allows picking the same file again later
-  if (file) setSelectedFile(file);
+  const file = this.files[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { toast("Please choose an image file.", "err"); return; }
+  const reader = new FileReader();
+  reader.onload = e => loadPreview(e.target.result);
+  reader.readAsDataURL(file);
 });
 
 dropzone.addEventListener("dragover", e => { e.preventDefault(); dropzone.classList.add("drag"); });
 dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
 dropzone.addEventListener("drop", e => {
   e.preventDefault(); dropzone.classList.remove("drag");
-  const file = e.dataTransfer.files && e.dataTransfer.files[0];
-  if (file) setSelectedFile(file);
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith("image/")){
+    imageInput.files = e.dataTransfer.files;
+    const reader = new FileReader();
+    reader.onload = ev => loadPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  }
 });
 
 clearBtn.addEventListener("click", () => {
-  selectedFile = null;
-  if (previewUrl){ URL.revokeObjectURL(previewUrl); previewUrl = null; }
+  selectedImageEl = null;
   preview.style.display = "none";
-  preview.removeAttribute("src");
+  preview.src = "";
   imageInput.value = "";
   resetResult();
 });
 
-/* Shows a result/error title. The data-i18n hook is removed while a real
-   result is on screen so a language change can't overwrite it. */
-function showResultText(title, sub){
-  disease.removeAttribute("data-i18n");
-  confLabel.removeAttribute("data-i18n");
-  disease.textContent = title;
-  confLabel.textContent = sub;
-}
-
 function resetResult(){
-  disease.setAttribute("data-i18n", "waiting_scan");
-  confLabel.setAttribute("data-i18n", "upload_prompt");
-  disease.textContent = CURRENT_STRINGS.waiting_scan || ORIGINAL_STRINGS.waiting_scan || "Waiting for scan…";
-  confLabel.textContent = CURRENT_STRINGS.upload_prompt || ORIGINAL_STRINGS.upload_prompt || "Upload or capture a leaf image to begin.";
-  accuracy.textContent = "0%";
-  gauge.style.setProperty("--pct", 0);
-  adviceBox.style.display = "none";
+  document.getElementById("disease").textContent = "Waiting for scan…";
+  document.getElementById("confLabel").textContent = "Upload or capture a leaf image to begin.";
+  document.getElementById("accuracy").textContent = "0%";
+  document.getElementById("gauge").style.setProperty("--pct", 0);
+  document.getElementById("adviceBox").style.display = "none";
 }
 
 /* ============================================================
@@ -1262,75 +1206,7 @@ const DISEASE_DB = [
     symptoms:["Uniform green colour","Firm texture","No spots, curling or discoloration"],
     treatment:["No treatment needed — maintain current care routine."],
     prevention:["Water at soil level in the morning","Ensure 4-6 hours of sunlight","Rotate crops each season","Inspect leaves weekly"],
-    keywords:["healthy","fine","normal","no problem","good leaf"] },{ 
-  id:"black-rot", 
-  name:"Black Rot", 
-  category:"Fungal", 
-  icon:"fa-circle-dot", 
-  risk:"danger",
-
-  causes:[
-    "Black rot is commonly associated with fungal infection and prolonged wet conditions",
-    "Poor airflow and infected plant debris can increase disease spread"
-  ],
-
-  symptoms:[
-    "Brown to black circular or irregular spots on leaves",
-    "Yellowing around infected areas",
-    "Severely affected leaves may dry and fall"
-  ],
-
-  treatment:[
-    "Remove and destroy severely infected leaves",
-    "Improve airflow around the plant",
-    "Apply an appropriate fungicide according to its label"
-  ],
-
-  prevention:[
-    "Avoid overhead watering",
-    "Keep leaves dry and improve ventilation",
-    "Remove infected plant debris",
-    "Inspect plants regularly"
-  ],
-
-  keywords:[
-    "black rot",
-    "black spots",
-    "dark spots",
-    "rot",
-    "apple black rot"
-  ]
-},
-{
-  id: "citrus-greening",
-  name: "Citrus Greening (HLB)",
-  category: "Bacterial",
-  icon: "fa-leaf",
-  risk: "warn",
-  causes: [
-    "A bacterial disease spread mainly by citrus psyllids."
-  ],
-  symptoms: [
-    "Uneven yellowing between leaf veins",
-    "Blotchy leaf patterns",
-    "Yellow shoots and poor fruit development"
-  ],
-  treatment: [
-    "Get the plant checked by a local agriculture expert.",
-    "There is no simple curative treatment for infected trees.",
-    "Follow local agricultural guidance for managing psyllids."
-  ],
-  prevention: [
-    "Use certified disease-free planting material.",
-    "Monitor plants for psyllids and unusual leaf patterns.",
-    "Follow local citrus disease management guidance."
-  ],
-  keywords: [
-    "citrus greening",
-    "hlb",
-    "huanglongbing"
-  ]
-},
+    keywords:["healthy","fine","normal","no problem","good leaf"] },
 
   { id:"rust", name:"Leaf Rust", category:"Fungal", icon:"fa-circle-dot", risk:"warn",
     causes:["Puccinia fungal spores spread by wind and splashing water","Prolonged leaf wetness","Dense, poorly ventilated planting"],
@@ -1425,32 +1301,135 @@ const DISEASE_DB = [
 ];
 
 /* ============================================================
-   SCAN FLOW — sends the image to the Flask AI backend (app.py)
+   MULTI-FEATURE LEAF ANALYSIS
+   Downsamples the image and extracts several colour/texture
+   features (green, yellow-brown, dark, pale/white, grayish and
+   lesion/spot density via block-variance) so different photos
+   are mapped to different, specific diagnoses instead of one
+   generic result. This is a deterministic computer-vision
+   heuristic — a lightweight stand-in for a trained CNN model,
+   built to be transparent about what it can and can't detect.
    ============================================================ */
-const API_URL = "http://127.0.0.1:5000/predict";
+function analyzeImage(imgEl){
+  const canvas = document.createElement("canvas");
+  const size = 120;
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(imgEl, 0, 0, size, size);
+  const data = ctx.getImageData(0, 0, size, size).data;
+
+  let green = 0, yellowBrown = 0, dark = 0, pale = 0, gray = 0, total = 0;
+  const brightnessGrid = [];
+  for (let y = 0; y < size; y++){
+    for (let x = 0; x < size; x++){
+      const i = (y * size + x) * 4;
+      const r = data[i], g = data[i+1], b = data[i+2];
+      total++;
+      const brightness = (r + g + b) / 3;
+      brightnessGrid.push(brightness);
+      const maxc = Math.max(r,g,b), minc = Math.min(r,g,b);
+      const sat = maxc - minc;
+      if (g > r + 12 && g > b + 12) green++;
+      else if (r > 120 && g > 90 && b < 100 && r >= g) yellowBrown++;
+      else if (brightness > 195 && sat < 25) pale++;
+      else if (sat < 18 && brightness > 90 && brightness < 175) gray++;
+      else if (brightness < 65) dark++;
+    }
+  }
+  const greenRatio = green / total;
+  const yellowRatio = yellowBrown / total;
+  const darkRatio = dark / total;
+  const paleRatio = pale / total;
+  const grayRatio = gray / total;
+
+  // block-variance "spot density" — proxy for lesion/pustule count
+  const block = 12, grid = size / block;
+  let spotBlocks = 0, blockCount = 0;
+  for (let by = 0; by < grid; by++){
+    for (let bx = 0; bx < grid; bx++){
+      let sum = 0, sumSq = 0, n = 0;
+      for (let y = by*block; y < by*block+block; y++){
+        for (let x = bx*block; x < bx*block+block; x++){
+          const v = brightnessGrid[y*size+x];
+          sum += v; sumSq += v*v; n++;
+        }
+      }
+      const mean = sum/n;
+      const variance = (sumSq/n) - (mean*mean);
+      if (variance > 950) spotBlocks++;
+      blockCount++;
+    }
+  }
+  const spotDensity = spotBlocks / blockCount;
+
+  let pick, confidence;
+  if (paleRatio > 0.16 && spotDensity > 0.12){
+    pick = "powdery-mildew"; confidence = 80 + Math.round(paleRatio*60);
+  } else if (grayRatio > 0.16 && yellowRatio > 0.04){
+    pick = "downy-mildew"; confidence = 78 + Math.round(grayRatio*55);
+  } else if (darkRatio > 0.20 && spotDensity > 0.32){
+    pick = "late-blight"; confidence = 82 + Math.round(darkRatio*45);
+  } else if (darkRatio > 0.11 && spotDensity >= 0.16 && spotDensity <= 0.34){
+    pick = "early-blight"; confidence = 80 + Math.round(darkRatio*45);
+  } else if (darkRatio > 0.05 && darkRatio <= 0.12 && spotDensity > 0.30){
+    pick = "bacterial-spot"; confidence = 77 + Math.round(spotDensity*45);
+  } else if (spotDensity > 0.28 && darkRatio < 0.10 && yellowRatio < 0.10 && greenRatio > 0.3){
+    pick = "rust"; confidence = 78 + Math.round(spotDensity*50);
+  } else if (paleRatio > 0.08 && spotDensity > 0.22 && darkRatio < 0.08){
+    pick = "pest-damage"; confidence = 74 + Math.round(spotDensity*50);
+  } else if (yellowRatio > 0.28 && spotDensity < 0.10 && greenRatio < 0.35){
+    pick = "mosaic-virus"; confidence = 76 + Math.round(yellowRatio*45);
+  } else if (yellowRatio > 0.20 && darkRatio < 0.05 && greenRatio < 0.45){
+    pick = "nutrient-nitrogen"; confidence = 78 + Math.round(yellowRatio*50);
+  } else if (yellowRatio > 0.08 && yellowRatio <= 0.20 && greenRatio > 0.35){
+    pick = "nutrient-iron"; confidence = 75 + Math.round(yellowRatio*60);
+  } else if (yellowRatio > 0.08 && darkRatio > 0.06 && spotDensity < 0.16){
+    pick = "anthracnose"; confidence = 76 + Math.round((yellowRatio+darkRatio)*40);
+  } else if (greenRatio > 0.60 && yellowRatio < 0.08 && darkRatio < 0.05 && spotDensity < 0.08){
+    pick = "healthy"; confidence = 90 + Math.round(greenRatio*9);
+  } else {
+    pick = "anthracnose"; confidence = 70 + Math.round((1-greenRatio)*25);
+  }
+
+  confidence = Math.min(95, Math.max(60, confidence));
+  const diagnosis = DISEASE_DB.find(d => d.id === pick) || DISEASE_DB[0];
+  return { diagnosis, confidence };
+}
+
+/* ============================================================
+   SCAN FLOW
+   ============================================================ */
+const disease = document.getElementById("disease");
+const accuracy = document.getElementById("accuracy");
+const gauge = document.getElementById("gauge");
+const confLabel = document.getElementById("confLabel");
+const adviceBox = document.getElementById("adviceBox");
 
 let lastResult = null;
-let scanTimer = null;
-
-function startProgress(){
-  stopProgress();
-  let v = 0;
-  scanTimer = setInterval(() => {
-    v = Math.min(v + 2, 90);
-    gauge.style.setProperty("--pct", v);
-    accuracy.textContent = v + "%";
-  }, 70);
-}
-function stopProgress(){
-  if (scanTimer){ clearInterval(scanTimer); scanTimer = null; }
-}
 
 scanBtn.addEventListener("click", () => {
-  if (!selectedFile){
+  if (!selectedImageEl){
     toast("Please upload or capture a leaf image first.", "warn");
     return;
   }
-  runScan();
+  scanBtn.disabled = true;
+  disease.textContent = "Scanning…";
+  confLabel.textContent = "Analyzing leaf texture and color…";
+  accuracy.textContent = "0%";
+  gauge.style.setProperty("--pct", 0);
+  adviceBox.style.display = "none";
+
+  let value = 0;
+  const timer = setInterval(() => {
+    value += 4;
+    if (value >= 100){
+      value = 100;
+      clearInterval(timer);
+      finishScan();
+    }
+    gauge.style.setProperty("--pct", value);
+    accuracy.textContent = value + "%";
+  }, 45);
 });
 
 function severityLabel(risk){
@@ -1460,63 +1439,25 @@ function severityBadgeClass(risk){
   return risk === "danger" ? "danger" : risk === "warn" ? "warn" : "ok";
 }
 
-const CATEGORY_ICONS = { none:"fa-leaf", fungal:"fa-circle-dot", bacterial:"fa-braille", viral:"fa-shapes", pest:"fa-bug", nutrient:"fa-flask" };
-function iconForCategory(cat){
-  const c = String(cat || "").toLowerCase();
-  const key = Object.keys(CATEGORY_ICONS).find(k => c.startsWith(k));
-  return key ? CATEGORY_ICONS[key] : "fa-leaf";
-}
-
-function prettyClass(s){
-  return String(s || "").replace(/___/g, " — ").replace(/_/g, " ").trim();
-}
-
-/* Builds the diagnosis object from the backend response. The backend sends
-   the full advice (name, category, causes, symptoms, treatment, prevention),
-   so every class the model knows works — the local DISEASE_DB is only a
-   fallback. */
-function diagnosisFromResponse(data){
-  const local = DISEASE_DB.find(d => d.id === data.disease);
-  const adv = data.advice || {};
-  const list = key => {
-    if (Array.isArray(data[key]) && data[key].length) return data[key];
-    if (Array.isArray(adv[key]) && adv[key].length) return adv[key];
-    return local ? local[key] : [];
-  };
-  const category = data.category || adv.category || (local && local.category) || "Plant condition";
-  const fallbackName = String(data.disease).replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-  return {
-    id: data.disease,
-    name: data.disease_name || adv.name || (local && local.name) || fallbackName,
-    category: category,
-    icon: (local && local.icon) || iconForCategory(category),
-    risk: data.risk || adv.risk || (local && local.risk) || "warn",
-    causes: list("causes"),
-    symptoms: list("symptoms"),
-    treatment: list("treatment"),
-    prevention: list("prevention")
-  };
-}
-
 async function renderAdviceBox(d){
   const lang = store.get("agro_lang", "en");
-  let sevLabel = severityLabel(d.risk), category = d.category;
-  let causes = d.causes || [], symptoms = d.symptoms || [], treatment = d.treatment || [], prevention = d.prevention || [];
+  let name = d.name, sevLabel = severityLabel(d.risk), category = d.category;
+  let causes = d.causes, symptoms = d.symptoms, treatment = d.treatment, prevention = d.prevention;
   if (lang !== "en"){
-    [sevLabel, category] = await Promise.all([
-      translateText(sevLabel, "en", lang), translateText(d.category, "en", lang)
+    [name, sevLabel, category] = await Promise.all([
+      translateText(d.name, "en", lang), translateText(severityLabel(d.risk), "en", lang), translateText(d.category, "en", lang)
     ]);
     [causes, symptoms, treatment, prevention] = await Promise.all([
-      Promise.all(causes.map(c => translateText(c, "en", lang))),
-      Promise.all(symptoms.map(c => translateText(c, "en", lang))),
-      Promise.all(treatment.map(c => translateText(c, "en", lang))),
-      Promise.all(prevention.map(c => translateText(c, "en", lang)))
+      Promise.all(d.causes.map(c => translateText(c, "en", lang))),
+      Promise.all(d.symptoms.map(c => translateText(c, "en", lang))),
+      Promise.all(d.treatment.map(c => translateText(c, "en", lang))),
+      Promise.all(d.prevention.map(c => translateText(c, "en", lang)))
     ]);
   }
-  const listHtml = arr => "<ul class='adv-list'>" + arr.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>";
+  const listHtml = arr => "<ul class='adv-list'>" + arr.map(x => "<li>" + x + "</li>").join("") + "</ul>";
   adviceBox.innerHTML =
-    "<div class='adv-head'><span class='badge " + severityBadgeClass(d.risk) + "'>" + esc(sevLabel) + "</span>" +
-    "<span class='adv-cat'><i class='fa-solid " + esc(d.icon) + "'></i> " + esc(category) + "</span></div>" +
+    "<div class='adv-head'><span class='badge " + severityBadgeClass(d.risk) + "'>" + sevLabel + "</span>" +
+    "<span class='adv-cat'><i class='fa-solid " + d.icon + "'></i> " + category + "</span></div>" +
     "<div class='adv-section'><h4>🔎 Causes</h4>" + listHtml(causes) + "</div>" +
     "<div class='adv-section'><h4>🩺 Symptoms</h4>" + listHtml(symptoms) + "</div>" +
     "<div class='adv-section'><h4>💊 Treatment</h4>" + listHtml(treatment) + "</div>" +
@@ -1539,155 +1480,83 @@ async function fetchLearnMore(name){
     let extract = data.extract || "No additional summary is available for this term.";
     const lang = store.get("agro_lang", "en");
     if (lang !== "en") extract = await translateText(extract, "en", lang);
-    let link = (data.content_urls && data.content_urls.desktop && data.content_urls.desktop.page) || ("https://en.wikipedia.org/wiki/" + title);
-    if (!/^https:\/\//.test(link)) link = "https://en.wikipedia.org/wiki/" + title;
-    const p = document.createElement("p");
-    p.textContent = extract;
-    const a = document.createElement("a");
-    a.href = link; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Source: Wikipedia ↗";
-    panel.textContent = "";
-    panel.append(p, a);
+    const link = (data.content_urls && data.content_urls.desktop && data.content_urls.desktop.page) || ("https://en.wikipedia.org/wiki/" + title);
+    panel.innerHTML = "<p>" + extract + "</p><a href='" + link + "' target='_blank' rel='noopener'>Source: Wikipedia ↗</a>";
   } catch(e){
     panel.textContent = "Couldn't reach Wikipedia right now — check your connection and try again.";
   }
 }
 
-function rejectionTitle(msg){
-  const l = String(msg || "").toLowerCase();
-  if (l.includes("human") || l.includes("person") || l.includes("face")) return "Human Detected";
-  if (l.includes("circular")) return "Circular Object";
-  return "Unclear Leaf";
-}
+async function finishScan(){
+  try {
+    const file = imageInput.files[0];
 
-async function runScan(){
-  scanBtn.disabled = true;
-  showResultText("Analyzing…", "Sending image to AI server…");
-  adviceBox.style.display = "none";
-  startProgress();
+    if (!file) {
+      throw new Error("No image selected");
+    }
 
-  try{
+    confLabel.textContent = "Sending image to AI server...";
+    disease.textContent = "Analyzing...";
+
     const formData = new FormData();
-    formData.append("image", selectedFile, selectedFile.name || "leaf.jpg");
+    formData.append("image", file);
 
-    let response;
-    try{
-      response = await fetch(API_URL, { method: "POST", body: formData });
-    } catch(netErr){
-      throw new Error("Cannot reach the AI server (" + API_URL + "). Start the backend first: python app.py");
+    const response = await fetch("http://127.0.0.1:5000/predict", {
+      method: "POST",
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error("Server error: " + response.status);
     }
 
-    let data;
-    try{
-      data = await response.json();
-    } catch(parseErr){
-      throw new Error("AI server sent an invalid response (HTTP " + response.status + ").");
-    }
-    stopProgress();
+    const data = await response.json();
 
-    console.log("========== AI RESPONSE ==========");
-    console.log(data);
+    console.log("AI response:", data);
 
-    /* --- Model not confident enough --- */
-    if (data.error === "UNCERTAIN_PREDICTION"){
-      const conf = Number(data.confidence || 0);
-      gauge.style.setProperty("--pct", Math.max(0, Math.min(100, conf)));
-      accuracy.textContent = conf.toFixed(1) + "%";
-      showResultText("Prediction Uncertain", data.message || "The AI could not confidently identify this leaf.");
-      const top = Array.isArray(data.top_predictions) ? data.top_predictions : [];
-      adviceBox.innerHTML =
-        "<p>Please try a clearer, close-up image in good light, or consult a plant expert.</p>" +
-        (top.length
-          ? "<div class='adv-section'><h4>Closest matches</h4><ul class='adv-list'>" +
-            top.map(t => "<li>" + esc(prettyClass(t.model_class)) + " — " + fmtConf(t.confidence) + "%</li>").join("") +
-            "</ul></div>"
-          : "");
-      adviceBox.style.display = "block";
-      return;
-    }
+    disease.textContent = data.disease;
+    accuracy.textContent = data.confidence + "%";
+    gauge.style.setProperty("--pct", data.confidence);
 
-    /* --- Image rejected (human / not a leaf / invalid file) --- */
-    if (data.error === "NOT_A_LEAF" || data.error === "INVALID_IMAGE"){
-      gauge.style.setProperty("--pct", 0);
-      accuracy.textContent = "0%";
-      showResultText(rejectionTitle(data.message), data.message || "Please upload a clear plant leaf image.");
-      toast(data.message || "Please upload a clear plant leaf image.", "warn");
-      return;
-    }
+    confLabel.textContent =
+      "AI Confidence " + data.confidence + "% · " +
+      new Date().toLocaleString();
 
-    if (!response.ok || data.error){
-      throw new Error(data.message || data.error || ("AI server returned HTTP " + response.status));
-    }
-    if (!data.disease){
-      throw new Error("AI server did not return a disease name.");
-    }
-
-    const confidence = Number(data.confidence);
-    if (!Number.isFinite(confidence)){
-      throw new Error("Invalid confidence received from AI server.");
-    }
-
-    /* --- Successful diagnosis --- */
-    const diagnosis = diagnosisFromResponse(data);
-    const crop = data.crop || "";
-    lastResult = { diagnosis: diagnosis, confidence: confidence, crop: crop };
-
-    gauge.style.setProperty("--pct", Math.max(0, Math.min(100, confidence)));
-    accuracy.textContent = confidence.toFixed(1) + "%";
-    showResultText(
-      (crop ? crop + " — " : "") + diagnosis.name,
-      "Confidence " + confidence.toFixed(2) + "% · " + new Date().toLocaleString()
-    );
-
-    await renderAdviceBox(diagnosis);
-    saveScanToHistory(lastResult);
-    toast("AI Scan complete: " + diagnosis.name + " (" + confidence.toFixed(1) + "%)");
-
-  } catch(error){
-    stopProgress();
-    console.error("========== AI PREDICTION ERROR ==========");
-    console.error(error);
-    const msg = String(error.message || "Unknown AI error");
-    gauge.style.setProperty("--pct", 0);
-    accuracy.textContent = "0%";
-    showResultText("AI Error", msg);
-    toast("AI prediction failed: " + msg, "warn");
-  } finally {
-    stopProgress();
     scanBtn.disabled = false;
+
+    toast("AI scan complete: " + data.disease);
+
+  } catch (error) {
+    console.error("AI scan error:", error);
+
+    disease.textContent = "Scan failed";
+    confLabel.textContent = "Could not connect to AI server";
+    accuracy.textContent = "0%";
+    gauge.style.setProperty("--pct", 0);
+
+    scanBtn.disabled = false;
+
+    toast("AI server connection failed", "warn");
   }
 }
 
 /* ============================================================
-   HISTORY (persisted per user)
-   Each entry stores a snapshot of the full advice, so old reports
-   still show the right causes/treatment even for classes that
-   are not in the local DISEASE_DB.
+   HISTORY (persisted)
    ============================================================ */
 function saveScanToHistory(result){
-  const d = result.diagnosis;
   const history = store.get(historyKey(), []);
   history.unshift({
     id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
     time: new Date().toISOString(),
-    diagnosisId: d.id,
-    name: d.name,
-    crop: result.crop || "",
+    diagnosisId: result.diagnosis.id,
+    name: result.diagnosis.name,
     confidence: result.confidence,
-    risk: d.risk,
-    snapshot: {
-      id: d.id, name: d.name, category: d.category, icon: d.icon, risk: d.risk,
-      causes: d.causes, symptoms: d.symptoms, treatment: d.treatment, prevention: d.prevention
-    }
+    risk: result.diagnosis.risk
   });
   store.set(historyKey(), history.slice(0, 50));
   renderHistory();
   renderDashboardStats();
   renderReportsList();
-}
-
-function entryTitle(h){ return (h.crop ? h.crop + " · " : "") + h.name; }
-function entryDiagnosis(entry){
-  return entry.snapshot || DISEASE_DB.find(x => x.id === entry.diagnosisId) || DISEASE_DB[0];
 }
 
 function renderHistory(){
@@ -1701,9 +1570,9 @@ function renderHistory(){
     const tr = document.createElement("tr");
     const badgeClass = h.risk === "ok" ? "ok" : "warn";
     tr.innerHTML =
-      "<td>" + esc(new Date(h.time).toLocaleString()) + "</td>" +
-      "<td>" + esc(entryTitle(h)) + "</td>" +
-      "<td><span class='badge " + badgeClass + "'>" + fmtConf(h.confidence) + "%</span></td>";
+      "<td>" + new Date(h.time).toLocaleString() + "</td>" +
+      "<td>" + h.name + "</td>" +
+      "<td><span class='badge " + badgeClass + "'>" + h.confidence + "%</span></td>";
     body.appendChild(tr);
   });
 }
@@ -1720,12 +1589,12 @@ function renderReportsList(){
     const tr = document.createElement("tr");
     const badgeClass = h.risk === "ok" ? "ok" : h.risk === "danger" ? "danger" : "warn";
     tr.innerHTML =
-      "<td>" + esc(new Date(h.time).toLocaleString()) + "</td>" +
-      "<td>" + esc(entryTitle(h)) + "</td>" +
-      "<td><span class='badge " + badgeClass + "'>" + fmtConf(h.confidence) + "%</span></td>" +
+      "<td>" + new Date(h.time).toLocaleString() + "</td>" +
+      "<td>" + h.name + "</td>" +
+      "<td><span class='badge " + badgeClass + "'>" + h.confidence + "%</span></td>" +
       "<td class='row-actions'>" +
-        "<button class='ghost row-btn' data-view='" + esc(h.id) + "' type='button'>View</button>" +
-        "<button class='row-btn' data-pdf='" + esc(h.id) + "' type='button'>PDF</button>" +
+        "<button class='ghost row-btn' data-view='" + h.id + "' type='button'>View</button>" +
+        "<button class='row-btn' data-pdf='" + h.id + "' type='button'>PDF</button>" +
       "</td>";
     body.appendChild(tr);
   });
@@ -1740,12 +1609,12 @@ function findHistoryEntry(id){
 function openReportDetail(id){
   const entry = findHistoryEntry(id);
   if (!entry) return;
-  const d = entryDiagnosis(entry);
-  const listHtml = arr => "<ul class='adv-list'>" + (arr || []).map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>";
+  const d = DISEASE_DB.find(x => x.id === entry.diagnosisId) || DISEASE_DB[0];
+  const listHtml = arr => "<ul class='adv-list'>" + arr.map(x => "<li>" + x + "</li>").join("") + "</ul>";
   document.getElementById("reportDetailBody").innerHTML =
     "<div class='adv-head'><span class='badge " + severityBadgeClass(d.risk) + "'>" + severityLabel(d.risk) + "</span>" +
-    "<span class='adv-cat'><i class='fa-solid " + esc(d.icon || "fa-leaf") + "'></i> " + esc(d.category) + "</span></div>" +
-    "<p class='conf' style='margin:10px 0;'>" + esc(entryTitle(entry)) + " · " + esc(new Date(entry.time).toLocaleString()) + " · " + fmtConf(entry.confidence) + "% confidence</p>" +
+    "<span class='adv-cat'><i class='fa-solid " + d.icon + "'></i> " + d.category + "</span></div>" +
+    "<p class='conf' style='margin:10px 0;'>" + new Date(entry.time).toLocaleString() + " · " + entry.confidence + "% confidence</p>" +
     "<div class='adv-section'><h4>🔎 Causes</h4>" + listHtml(d.causes) + "</div>" +
     "<div class='adv-section'><h4>🩺 Symptoms</h4>" + listHtml(d.symptoms) + "</div>" +
     "<div class='adv-section'><h4>💊 Treatment</h4>" + listHtml(d.treatment) + "</div>" +
@@ -1757,7 +1626,8 @@ function openReportDetail(id){
 function downloadPastReport(id){
   const entry = findHistoryEntry(id);
   if (!entry) return;
-  buildReportPDF(entryDiagnosis(entry), entry.confidence, new Date(entry.time));
+  const d = DISEASE_DB.find(x => x.id === entry.diagnosisId) || DISEASE_DB[0];
+  buildReportPDF(d, entry.confidence, new Date(entry.time));
   toast("PDF report downloaded.");
 }
 
@@ -1852,7 +1722,7 @@ let cameraStream = null;
 
 openCameraBtn.addEventListener("click", async () => {
   try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } });
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
     camera.srcObject = cameraStream;
     captureBtn.disabled = false;
     stopCameraBtn.disabled = false;
@@ -1867,11 +1737,9 @@ captureBtn.addEventListener("click", () => {
   if (!w || !h){ toast("Camera not ready yet.", "warn"); return; }
   captureCanvas.width = w; captureCanvas.height = h;
   captureCanvas.getContext("2d").drawImage(camera, 0, 0, w, h);
-  captureCanvas.toBlob(blob => {
-    if (!blob){ toast("Could not capture the frame.", "err"); return; }
-    setSelectedFile(new File([blob], "camera_leaf.jpg", { type: "image/jpeg" }));
-    toast("Frame captured — ready to scan.");
-  }, "image/jpeg", 0.92);
+  const dataUrl = captureCanvas.toDataURL("image/png");
+  loadPreview(dataUrl);
+  toast("Frame captured — ready to scan.");
 });
 
 function stopCameraStream(){
@@ -1940,7 +1808,7 @@ function botReplyEnglish(msg){
   const smart = diagnoseFromText(msg);
   if (smart) return smart;
   const lower = msg.toLowerCase();
-  const match = REPLIES.find(r => r.keys.some(k => new RegExp("\\b" + k + "\\b").test(lower)));
+  const match = REPLIES.find(r => r.keys.some(k => lower.includes(k)));
   return match ? match.reply : "I'm not fully sure about that yet — try describing the leaf symptoms (spots, colour, curling, wilting) or ask about watering, pests, or fertilizer.";
 }
 
@@ -2081,7 +1949,7 @@ voiceFab.addEventListener("click", () => {
 function updateReportSummary(){
   const el = document.getElementById("reportSummary");
   if (!lastResult){ el.textContent = "Run a scan first to generate a report."; return; }
-  el.textContent = "Diagnosis: " + lastResult.diagnosis.name + " · Confidence: " + fmtConf(lastResult.confidence) + "%";
+  el.textContent = "Diagnosis: " + lastResult.diagnosis.name + " · Confidence: " + lastResult.confidence + "%";
 }
 
 function buildReportPDF(d, confidence, whenDate){
@@ -2101,7 +1969,7 @@ function buildReportPDF(d, confidence, whenDate){
 
   pdf.setFontSize(14);
   pdf.text("Diagnosis: " + d.name + " (" + d.category + ")", 20, y); y += 9;
-  pdf.text("Confidence: " + fmtConf(confidence) + "%  ·  Severity: " + severityLabel(d.risk), 20, y); y += 12;
+  pdf.text("Confidence: " + confidence + "%  ·  Severity: " + severityLabel(d.risk), 20, y); y += 12;
 
   const section = (title, items) => {
     pdf.setFontSize(12);
@@ -2250,7 +2118,6 @@ enableLocationBtn.addEventListener("click", initWeather);
    INIT
    ============================================================ */
 function bootApp(){
-  lastResult = null;
   renderHistory();
   renderDashboardStats();
   renderReportsList();
